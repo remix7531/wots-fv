@@ -1,0 +1,32 @@
+-Q proof wots
+# Suppress "From Coq" deprecation from clightgen-generated Source files
+-arg -w -arg -deprecated-from-Coq
+
+proof/clight/sha256.v
+proof/clight/wots.v
+proof/model/notation.v
+proof/model/wots.v
+proof/model/correct.v
+proof/model/extract.v
+proof/contract/public.v
+proof/contract/lemmas/data_at.v
+proof/contract/lemmas/byte_ok.v
+proof/contract/lemmas/chain.v
+proof/contract/lemmas/arith.v
+proof/contract/lemmas/pkgen_sign.v
+proof/contract/lemmas/verify.v
+proof/contract/lemmas.v
+proof/contract/helpers.v
+proof/contract/trusted.v
+proof/contract/gprog.v
+proof/verif/body_addr_bytes.v
+proof/verif/body_prf.v
+proof/verif/body_prf_keygen.v
+proof/verif/body_thash_f.v
+proof/verif/body_derive_sk.v
+proof/verif/body_chain.v
+proof/verif/body_expand_digits.v
+proof/verif/body_wots_pkgen.v
+proof/verif/body_wots_sign.v
+proof/verif/body_wots_pk_from_sig.v
+proof/verif/body_wots_verify.v
