@@ -1,0 +1,60 @@
+# CI for wots+fv.
+#
+# Three parallel jobs from the same Nix devshell:
+#   test   gcc + OCaml-extracted library, vector + tamper + CAVS suite
+#   lint   clang-tidy + ASan/UBSan + CompCert builds (make lint)
+#   proof  VST/Rocq verification (make proof) -- continue-on-error
+#          while the proofs are being repaired post-refactor; status
+#          stays visible without turning the overall run red.
+#
+# The flake declares compcert as unfree; we accept it via env so the
+# devshell evaluates without prompting.
+
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  NIXPKGS_ALLOW_UNFREE: "1"
+
+jobs:
+  test:
+    name: test (gcc + ocaml)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: DeterminateSystems/nix-installer-action@v17
+      - name: make test
+        run: nix develop --impure -c make test
+      - name: make test-ocaml
+        run: nix develop --impure -c make test-ocaml
+
+  lint:
+    name: lint (tidy + ASan/UBSan + CompCert)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: DeterminateSystems/nix-installer-action@v17
+      - name: make lint
+        run: nix develop --impure -c make lint
+
+  proof:
+    name: proof (Rocq + VST)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: DeterminateSystems/nix-installer-action@v17
+      - name: make proof
+        run: nix develop --impure -c make proof

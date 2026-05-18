@@ -50,6 +50,12 @@ let sign ~msg ~sk_seed ~pub_seed ~addr =
             (bytes_to_list pub_seed) (adrs_of_array addr))
     sig_bytes
 
+let pk_from_sig ~signat ~msg ~pub_seed ~addr =
+  bytes_of_block_list
+    (E.pkFromSig (bytes_to_list msg) (split_blocks signat)
+                 (bytes_to_list pub_seed) (adrs_of_array addr))
+    pk_bytes
+
 let verify ~pk ~signat ~msg ~pub_seed ~addr =
   E.verify (split_blocks pk) (split_blocks signat)
            (bytes_to_list msg) (bytes_to_list pub_seed)

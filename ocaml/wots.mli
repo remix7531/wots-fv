@@ -7,6 +7,8 @@ type addr = int array  (** 8 × uint32, big-endian within each word. *)
 val pkgen    : sk_seed:bytes -> pub_seed:bytes -> addr:addr -> bytes
 val sign     : msg:bytes -> sk_seed:bytes -> pub_seed:bytes
             -> addr:addr -> bytes
+val pk_from_sig : signat:bytes -> msg:bytes -> pub_seed:bytes
+               -> addr:addr -> bytes
 val verify   : pk:bytes -> signat:bytes -> msg:bytes
             -> pub_seed:bytes -> addr:addr -> bool
 

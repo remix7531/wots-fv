@@ -8,6 +8,9 @@ let () =
   Callback.register "wots_ocaml_sign"
     (fun msg sk_seed pub_seed addr ->
        Wots.sign ~msg ~sk_seed ~pub_seed ~addr);
+  Callback.register "wots_ocaml_pk_from_sig"
+    (fun signat msg pub_seed addr ->
+       Wots.pk_from_sig ~signat ~msg ~pub_seed ~addr);
   Callback.register "wots_ocaml_verify"
     (fun pk signat msg pub_seed addr ->
        Wots.verify ~pk ~signat ~msg ~pub_seed ~addr)

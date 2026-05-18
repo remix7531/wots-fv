@@ -17,20 +17,37 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef WOTSFV_SHA256_H
-#define WOTSFV_SHA256_H
+#include "util.h"
 
-#include <stddef.h>
-#include <stdint.h>
+void *wotsfv_memcpy(void *dst, const void *src, size_t n) {
+    uint8_t       *d = (uint8_t *)dst;
+    const uint8_t *s = (const uint8_t *)src;
+    for (size_t i = 0; i < n; i++) {
+        d[i] = s[i];
+    }
+    return dst;
+}
 
-#define WOTSFV_SHA256_DIGEST_BYTES 32
-#define WOTSFV_SHA256_BLOCK_BYTES  64
+void *wotsfv_memset(void *dst, int byte, size_t n) {
+    uint8_t *d = (uint8_t *)dst;
+    uint8_t  b = (uint8_t)byte;
+    for (size_t i = 0; i < n; i++) {
+        d[i] = b;
+    }
+    return dst;
+}
 
-/* One-shot SHA-256 (FIPS 180-4).
-     out:   non-NULL, >= 32 writable bytes
-     in:    non-NULL or inlen == 0
-     inlen: <= SIZE_MAX / 8 */
-void wotsfv_sha256(uint8_t out[WOTSFV_SHA256_DIGEST_BYTES],
-                   const uint8_t *in, size_t inlen);
+int wotsfv_ct_memcmp(const uint8_t *a, const uint8_t *b, size_t n) {
+    uint8_t diff = 0;
+    for (size_t i = 0; i < n; i++) {
+        diff |= (uint8_t)(a[i] ^ b[i]);
+    }
+    return diff;
+}
 
+void wotsfv_panic(void) {
+#ifndef __COMPCERT__
+    __builtin_trap();
 #endif
+    for (;;) { }
+}

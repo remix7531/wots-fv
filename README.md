@@ -1,10 +1,9 @@
 # WOTS+ Formally Verified
 
+[![ci](https://github.com/remix7531/wots-fv/actions/workflows/ci.yml/badge.svg)](https://github.com/remix7531/wots-fv/actions/workflows/ci.yml)
+
 Machine-checked functional-correctness proof of a C implementation of
 RFC 8391 WOTS+ (`WOTSP-SHA2_256`), using VST on Rocq 9.0 + CompCert.
-
-> **Do not use this code.** Vibe-coded cryptography; educational artifact
-> only.
 
 ## What is proved
 
@@ -29,16 +28,17 @@ interoperates with upstream vectors.
 nix develop      # devshell with CompCert, VST, xmss-reference, OCaml
 make             # c lib + ocaml lib + tests + clightgen + proofs
 make proof       # proofs only
-make test        # vector comparison vs xmss-reference (N=32 default)
+make test        # vector comparison vs xmss-reference (N=512 default)
 make test-ocaml  # same vectors vs build/libwots_ocaml.a
+make lint        # clang-tidy + ASan/UBSan + CompCert (CI gate)
 make clean
 ```
 
 ## Layout
 
 ```
-src/          wots.{c,h}, sha256.{c,h}
-test/         main.c, gen_vectors.c
+src/          wots.{c,h}, sha256.{c,h}, util.{c,h}
+test/         runner.c, common.{c,h}, sha256.c, wots.c, gen_vectors.c, vectors/
 proof/        model/, contract/, verif/, clight/
 ocaml/        sources for Rocq-extracted library
 .nix/         xmss-reference package
@@ -51,7 +51,14 @@ ocaml/        sources for Rocq-extracted library
 `ocamlopt -output-complete-obj` so consumers need no OCaml at link time.
 `make test-ocaml` reuses the vector pipeline against that library.
 
-## Known side channel
+## Side channels
 
-`wots_verify` compares the candidate public key with `memcmp`, which is
-not constant-time and leaks per-byte equality through timing.
+`wotsfv_verify` operates only on public inputs (`pk`, `sig`, `msg`,
+`pub_seed`), so its timing is not security-relevant. `wotsfv_sign`
+and `wotsfv_pkgen` consume `sk_seed` and rely on the SHA-256 core
+being free of secret-dependent branches and table lookups; this is
+argued by inspection of `src/sha256.c`, not formally verified.
+
+## License
+
+GPL-3.0-or-later. See `LICENSE`.

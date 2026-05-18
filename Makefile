@@ -1,6 +1,26 @@
-CC      ?= gcc
-AR      ?= ar
-NPROC   := $(shell nproc)
+# ============================================================================
+# wots+fv build system.
+#
+# User-facing targets:
+#   make            full build: lib + tests + ocaml lib + ocaml tests + proof
+#   make test       C library + tests
+#   make test-ocaml Rocq-extracted reference library + tests
+#   make proof      VST proofs
+#   make lint       clang-tidy + ASan/UBSan + CompCert (CI gate)
+#   make clean
+#
+# Knobs:
+#   N=512           vectors per test run (default 512)
+#   CC=ccomp        build with CompCert
+#   CFLAGS=...      override compiler flags
+# ============================================================================
+
+# ----- Configuration --------------------------------------------------------
+
+CC    ?= gcc
+AR    ?= ar
+N     ?= 512
+NPROC := $(shell nproc)
 
 ifeq ($(CC),ccomp)
   CFLAGS = -std=c99 -Wall -O2 -Isrc -Wp,-w
@@ -8,30 +28,41 @@ else
   CFLAGS = -std=c99 -Wall -Wextra -Wpedantic -Werror -O2 -Isrc
 endif
 
-# xmss-reference (static lib + headers) comes from the Nix devshell.
-# XMSSREF_PREFIX is exported by flake.nix's shellHook.
+# Sanitizer flags for `make test-asan`.
+ASAN_CFLAGS = -std=c99 -Wall -Wextra -Wpedantic -Werror -O1 -g \
+              -fsanitize=address,undefined -fno-omit-frame-pointer \
+              -fno-sanitize-recover=all -Isrc
+
+# xmss-reference comes from the Nix devshell; XMSSREF_PREFIX is set in
+# flake.nix's shellHook.
 XMSSREF_CFLAGS  ?= -I$(XMSSREF_PREFIX)/include
 XMSSREF_LDFLAGS ?= -L$(XMSSREF_PREFIX)/lib -lxmssref -lcrypto
 
-# Number of random test vectors per `make test`.  Override with `make test N=64`.
-N ?= 512
+# clang-tidy bypasses the Nix gcc-wrapper that injects glibc's include path,
+# so discover the system include dirs from gcc and pass them as -isystem.
+SYS_INCLUDES := $(shell echo | $(CC) -E -Wp,-v -xc - 2>&1 \
+                  | sed -n 's|^ \(/.*\)|-isystem \1|p')
 
-# All build artifacts land here.  Source tree stays clean.
+# ----- Artifact paths -------------------------------------------------------
+
 BUILD = build
 
+# C library
 LIB      = $(BUILD)/libwots.a
-LIB_SRCS = src/wots.c src/sha256.c
+LIB_SRCS = src/wots.c src/sha256.c src/util.c
 LIB_OBJS = $(patsubst src/%.c,$(BUILD)/src/%.o,$(LIB_SRCS))
-LIB_HDRS = src/wots.h src/sha256.h
+LIB_HDRS = src/wots.h src/sha256.h src/util.h
 
-MAIN        = $(BUILD)/test/main
-MAIN_OCAML  = $(BUILD)/test/main_ocaml
-GEN         = $(BUILD)/test/gen_vectors
+# Test binaries
+MAIN       = $(BUILD)/test/main
+MAIN_OCAML = $(BUILD)/test/main_ocaml
+GEN        = $(BUILD)/test/gen_vectors
 
-# --- Rocq-extracted library (Rocq → OCaml → C-linkable static lib). ---
-# libwots_ocaml.a drops in for libwots.a: same ABI, same test harness.
-# The OCaml runtime is embedded via ocamlopt -output-complete-obj, so
-# consumers need no OCaml dependency at link time.
+# Vectors live in $(BUILD)/vectors-$(N).bin so different N values cache
+# independently; `make retest` discards and regenerates at the current N.
+VECTORS = $(BUILD)/vectors-$(N).bin
+
+# OCaml-extracted library
 OCAML_DIR     = ocaml
 OCAML_BUILD   = $(BUILD)/ocaml
 OCAML_LIB     = $(BUILD)/libwots_ocaml.a
@@ -47,32 +78,29 @@ OCAML_INCDIR := $(shell $(OCAMLFIND) ocamlc -where)
 OCAMLFIND_IGNORE_DUPS_IN := $(shell $(OCAMLFIND) query digestif 2>/dev/null)
 export OCAMLFIND_IGNORE_DUPS_IN
 
-# Vectors live in $(BUILD)/vectors-$(N).bin.  Caching by filename means
-#   - `make test N=64` after `make test N=32` reuses the 32 file and
-#     creates a fresh 64 file;
-#   - re-running `make test` with the same N reuses the file, so a
-#     failing run is reproducible via `./$(MAIN) < $(VECTORS)`;
-#   - `make retest` forces a new random draw at the current N.
-VECTORS = $(BUILD)/vectors-$(N).bin
+# Project args from _RocqProject for direct `rocq compile` calls.
+ROCQ_ARGS = $(shell grep -E '^-[A-Z]' _RocqProject | tr '\n' ' ')
 
-# Bright cyan section banner; bright blue success banner.
+# Cyan banner; blue success line.
 BANNER  = printf '\n\033[1;36m══ %s ══\033[0m\n'
 SUCCESS = printf '\033[1;34m✓ %s\033[0m\n'
 
-all: banner-lib lib banner-test test \
-     banner-ocaml-lib ocaml-lib banner-test-ocaml test-ocaml \
-     banner-clight clight banner-proof proof
+# ----- Top-level targets ----------------------------------------------------
 
-banner-lib:        ; @$(BANNER) "C library"
-banner-test:       ; @$(BANNER) "C tests"
-banner-ocaml-lib:  ; @$(BANNER) "OCaml-extracted library"
-banner-test-ocaml: ; @$(BANNER) "OCaml-extracted tests"
-banner-clight:     ; @$(BANNER) "clightgen (C -> Clight AST)"
-banner-proof:      ; @$(BANNER) "Rocq verification"
+.PHONY: all lib ocaml-lib test test-ocaml retest clight proof clean \
+        test-asan test-ccomp lint lint-tidy
 
-lib: $(LIB)
+all:
+	@$(BANNER) "C library";                   $(MAKE) --no-print-directory lib
+	@$(BANNER) "C tests";                     $(MAKE) --no-print-directory test
+	@$(BANNER) "OCaml-extracted library";     $(MAKE) --no-print-directory ocaml-lib
+	@$(BANNER) "OCaml-extracted tests";       $(MAKE) --no-print-directory test-ocaml
+	@$(BANNER) "clightgen (C -> Clight AST)"; $(MAKE) --no-print-directory clight
+	@$(BANNER) "Rocq verification";           $(MAKE) --no-print-directory proof
 
+lib:       $(LIB)
 ocaml-lib: $(OCAML_LIB)
+clight:    proof/clight/wots.v proof/clight/sha256.v proof/clight/util.v
 
 test: $(VECTORS) $(MAIN)
 	./$(MAIN) < $(VECTORS)
@@ -84,13 +112,30 @@ retest:
 	@rm -f $(VECTORS)
 	@$(MAKE) --no-print-directory test N=$(N)
 
-clight: proof/clight/wots.v proof/clight/sha256.v
-
-proof: Makefile.coq proof/clight/wots.v proof/clight/sha256.v
+proof: Makefile.coq proof/clight/wots.v proof/clight/sha256.v proof/clight/util.v
 	@$(MAKE) -j $(NPROC) --no-print-directory -f Makefile.coq
 	@$(SUCCESS) "All Verifications Succeeded"
 
-# --- Build rules ---
+# ----- Quality gates --------------------------------------------------------
+# `make lint` runs all three; CI fails if any sub-target fails.
+
+lint: lint-tidy test-asan test-ccomp
+
+lint-tidy:
+	@$(BANNER) "clang-tidy"
+	clang-tidy $(LIB_SRCS) $(TEST_SRCS) -- -std=c99 -Isrc -Itest -D_DEFAULT_SOURCE=1 $(SYS_INCLUDES)
+
+test-asan:
+	@$(BANNER) "C tests (ASan + UBSan)"
+	@$(MAKE) --no-print-directory clean
+	@$(MAKE) --no-print-directory test CFLAGS="$(ASAN_CFLAGS)"
+
+test-ccomp:
+	@$(BANNER) "C tests (CompCert)"
+	@$(MAKE) --no-print-directory clean
+	@$(MAKE) --no-print-directory test CC=ccomp
+
+# ----- C library + tests ----------------------------------------------------
 
 $(BUILD)/src/%.o: src/%.c $(LIB_HDRS)
 	@mkdir -p $(@D)
@@ -100,9 +145,22 @@ $(LIB): $(LIB_OBJS)
 	@mkdir -p $(@D)
 	$(AR) rcs $@ $^
 
-$(MAIN): test/main.c $(LIB) $(LIB_HDRS)
+# Test harness sources.  Split across modules so each TU has one job:
+#   common.c   shared helpers (rng, status)
+#   sha256.c   SHA-256 KATs + NIST CAVS parser
+#   wots.c     WOTS+ self-consistency + tamper + vector cross-check
+#   runner.c   banner + section drivers
+TEST_SRCS = test/common.c test/sha256.c test/wots.c test/runner.c
+TEST_HDRS = test/common.h
+
+# _DEFAULT_SOURCE exposes glibc's getrandom(2) / getline(3) to every
+# test TU; safer than per-file #define which would race with header
+# include order.
+TEST_CFLAGS = $(CFLAGS) -Itest -D_DEFAULT_SOURCE=1
+
+$(MAIN): $(TEST_SRCS) $(TEST_HDRS) $(LIB) $(LIB_HDRS)
 	@mkdir -p $(@D)
-	$(CC) $(CFLAGS) -o $@ test/main.c $(LIB)
+	$(CC) $(TEST_CFLAGS) -o $@ $(TEST_SRCS) $(LIB)
 
 $(GEN): test/gen_vectors.c
 	@mkdir -p $(@D)
@@ -112,20 +170,16 @@ $(BUILD)/vectors-%.bin: $(GEN)
 	@mkdir -p $(@D)
 	./$(GEN) $* > $@
 
-# --- Rocq-extracted library. ---
+# ----- OCaml-extracted library ----------------------------------------------
 # Pipeline:
-#   1. `rocq compile Extract.v`  →  ocaml/wots_extracted.ml(i)
-#   2. ocamlopt -output-complete-obj packs all OCaml sources plus the
-#      OCaml runtime into one .o that C can link without any OCaml
-#      dependency at use-time.
+#   1. `rocq compile extract.v`  →  build/ocaml/wots_extracted.ml(i)
+#   2. ocamlopt -output-complete-obj packs all OCaml sources plus the OCaml
+#      runtime into one .o that C can link without any OCaml dep at use-time.
 #   3. wrap.c compiles to a small C bridge calling into that blob.
-#   4. ar rcs the two .o into libwots_ocaml.a.
+#   4. ar rcs the .o files into libwots_ocaml.a.
+# libwots_ocaml.a is ABI-compatible with libwots.a, so the same test
+# harness can link against either.
 
-# Project args (-Q ..., -arg ...) shared by every direct rocq compile call.
-ROCQ_ARGS = $(shell grep -E '^-[A-Z]' _RocqProject | tr '\n' ' ')
-
-# Build the pure model directly with rocq compile -- no Makefile.coq, no
-# clightgen, so ocaml-lib stands alone with only Stdlib + Rocq as deps.
 proof/model/notation.vo: proof/model/notation.v
 	@rocq compile $(ROCQ_ARGS) $<
 
@@ -137,7 +191,7 @@ $(OCAML_EXTRACT): proof/model/wots.vo proof/model/extract.v
 	@rocq compile $(ROCQ_ARGS) proof/model/extract.v
 
 # Stage OCaml sources into build/ocaml/ alongside the extracted module so
-# ocamlopt's .cmi/.cmx/.o intermediates land in build/ and not the tree.
+# ocamlopt's .cmi/.cmx/.o intermediates land in build/, not in the tree.
 $(OCAML_BLOB): $(OCAML_EXTRACT) \
                $(OCAML_DIR)/sha256_ext.ml \
                $(OCAML_DIR)/wots.mli $(OCAML_DIR)/wots.ml \
@@ -155,33 +209,38 @@ $(OCAML_WRAP): $(OCAML_DIR)/wrap.c $(LIB_HDRS)
 	@mkdir -p $(@D)
 	$(CC) -std=c99 -Wall -O2 -I$(OCAML_INCDIR) -Isrc -c $< -o $@
 
-$(OCAML_LIB): $(OCAML_BLOB) $(OCAML_WRAP) $(BUILD)/src/sha256.o
+$(OCAML_LIB): $(OCAML_BLOB) $(OCAML_WRAP) $(BUILD)/src/sha256.o $(BUILD)/src/util.o
 	@mkdir -p $(@D)
 	$(AR) rcs $@ $^
 
-# Same test harness, linked against libwots_ocaml.a instead of libwots.a.
-$(MAIN_OCAML): test/main.c $(OCAML_LIB) $(LIB_HDRS)
+$(MAIN_OCAML): $(TEST_SRCS) $(TEST_HDRS) $(OCAML_LIB) $(LIB_HDRS)
 	@mkdir -p $(@D)
-	$(CC) $(CFLAGS) -o $@ test/main.c $(OCAML_LIB) -lm -ldl -lpthread
+	$(CC) $(TEST_CFLAGS) -o $@ $(TEST_SRCS) $(OCAML_LIB) -lm -ldl -lpthread
 
-# --- VST source generation (kept in proof/ so _RocqProject finds it) ---
+# ----- VST / Rocq -----------------------------------------------------------
+# Clight ASTs land in proof/clight/ so _RocqProject finds them.
 
-proof/clight/wots.v: src/wots.c src/wots.h src/sha256.h
+proof/clight/wots.v: src/wots.c src/wots.h src/sha256.h src/util.h
 	@mkdir -p $(@D)
 	clightgen -normalize -Isrc -Wp,-w -o $@ $<
 
-proof/clight/sha256.v: src/sha256.c src/sha256.h
+proof/clight/sha256.v: src/sha256.c src/sha256.h src/util.h
+	@mkdir -p $(@D)
+	clightgen -normalize -Isrc -Wp,-w -o $@ $<
+
+proof/clight/util.v: src/util.c src/util.h
 	@mkdir -p $(@D)
 	clightgen -normalize -Isrc -Wp,-w -o $@ $<
 
 Makefile.coq: _RocqProject
 	@rocq makefile -f _RocqProject -o Makefile.coq
 
-clean:
-	@if [ -e Makefile.coq ]; then $(MAKE) --no-print-directory -f Makefile.coq cleanall 2>/dev/null; fi
-	@rm -rf $(BUILD)
-	@rm -f Makefile.coq Makefile.coq.conf proof/clight/wots.v proof/clight/sha256.v
+# ----- Clean ----------------------------------------------------------------
 
-.PHONY: all lib ocaml-lib test test-ocaml retest clight proof clean \
-        banner-lib banner-test banner-ocaml-lib banner-test-ocaml \
-        banner-clight banner-proof
+clean:
+	@if [ -e Makefile.coq ]; then \
+	    $(MAKE) --no-print-directory -f Makefile.coq cleanall 2>/dev/null; \
+	fi
+	@rm -rf $(BUILD)
+	@rm -f Makefile.coq Makefile.coq.conf \
+	       proof/clight/wots.v proof/clight/sha256.v proof/clight/util.v

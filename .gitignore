@@ -18,3 +18,7 @@ references/
 result
 scripts/
 scripts/*
+*.md
+!README.md
+!SECURITY.md
+!STYLE.md
