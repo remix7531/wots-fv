@@ -149,7 +149,10 @@ void wotsfv_pkgen(uint8_t       *restrict pk,
                   const uint8_t *restrict sk_seed,
                   const uint8_t *restrict pub_seed,
                   uint32_t                addr[restrict 8]) {
-    WOTSFV_ASSERT(pk && sk_seed && pub_seed && addr);
+    WOTSFV_ASSERT(pk);
+    WOTSFV_ASSERT(sk_seed);
+    WOTSFV_ASSERT(pub_seed);
+    WOTSFV_ASSERT(addr);
     for (unsigned i = 0; i < LEN; i++) {
         derive_sk(pk + ((size_t)i * N), i, sk_seed, pub_seed, addr);
         chain(pk + ((size_t)i * N), 0, W - 1, pub_seed, addr);
@@ -161,7 +164,11 @@ void wotsfv_sign(uint8_t       *restrict sig,
                  const uint8_t *restrict sk_seed,
                  const uint8_t *restrict pub_seed,
                  uint32_t                addr[restrict 8]) {
-    WOTSFV_ASSERT(sig && msg && sk_seed && pub_seed && addr);
+    WOTSFV_ASSERT(sig);
+    WOTSFV_ASSERT(msg);
+    WOTSFV_ASSERT(sk_seed);
+    WOTSFV_ASSERT(pub_seed);
+    WOTSFV_ASSERT(addr);
     uint8_t digits[LEN];
     expand_digits(digits, msg);
     for (unsigned i = 0; i < LEN; i++) {
@@ -175,7 +182,11 @@ void wotsfv_pk_from_sig(uint8_t       *restrict pk_cand,
                         const uint8_t *restrict msg,
                         const uint8_t *restrict pub_seed,
                         uint32_t                addr[restrict 8]) {
-    WOTSFV_ASSERT(pk_cand && sig && msg && pub_seed && addr);
+    WOTSFV_ASSERT(pk_cand);
+    WOTSFV_ASSERT(sig);
+    WOTSFV_ASSERT(msg);
+    WOTSFV_ASSERT(pub_seed);
+    WOTSFV_ASSERT(addr);
     uint8_t digits[LEN];
     expand_digits(digits, msg);
     for (unsigned i = 0; i < LEN; i++) {
@@ -192,7 +203,11 @@ int wotsfv_verify(const uint8_t *restrict pk,
                   const uint8_t *restrict msg,
                   const uint8_t *restrict pub_seed,
                   uint32_t                addr[restrict 8]) {
-    WOTSFV_ASSERT(pk && sig && msg && pub_seed && addr);
+    WOTSFV_ASSERT(pk);
+    WOTSFV_ASSERT(sig);
+    WOTSFV_ASSERT(msg);
+    WOTSFV_ASSERT(pub_seed);
+    WOTSFV_ASSERT(addr);
     uint8_t pk_cand[WOTSFV_PK_BYTES];
     wotsfv_pk_from_sig(pk_cand, sig, msg, pub_seed, addr);
     return (wotsfv_ct_memcmp(pk_cand, pk, WOTSFV_PK_BYTES) == 0)

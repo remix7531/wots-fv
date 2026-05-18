@@ -1,4 +1,4 @@
-(** * body_wots_verify: VST body proof for [wots_verify]. *)
+(** * body_wotsfv_verify: VST body proof for [wots_verify]. *)
 (** Copyright (C) 2026 remix7531
     SPDX-License-Identifier: GPL-3.0-or-later *)
 
@@ -8,9 +8,17 @@ From wots Require Import model.wots.
 
 Open Scope Z_scope.
 
-Lemma body_wots_verify : semax_body Vprog Gprog f_wots_verify wots_verify_spec.
+Lemma body_wotsfv_verify : semax_body Vprog Gprog f_wotsfv_verify wotsfv_verify_spec.
 Proof.
   start_function.
+
+  (* ===== Null-check prelude (dead panic branches) ===== *)
+
+  step_null_assert pk_ptr  Hpk.
+  step_null_assert sig_ptr Hsig.
+  step_null_assert msg_ptr Hmsg.
+  step_null_assert ps_ptr  Hps.
+  step_null_assert a_ptr   Ha.
 
   (* ===== Setup: resolve pk_bytes constant ===== *)
 
@@ -49,7 +57,17 @@ Proof.
   (* ===== memcmp(pk_candidate, pk, WOTS_PK_BYTES) ===== *)
 
   (* memcmp(v_pk_cand, pk_ptr, WOTS_PK_BYTES) *)
+  assert (Hbr : forall b : block,
+            Forall (fun i : int => 0 <= Int.unsigned i < 256)
+              (block_ints b)).
+  { intros b. unfold block_ints.
+    apply Forall_map, Forall_forall. intros x _.
+    unfold Basics.compose.
+    pose proof (Z.mod_pos_bound x 256 ltac:(lia)) as [Hlo Hhi].
+    rewrite Int.unsigned_repr by rep_lia. lia. }
+
   forward_call (Tsh, sh_pk, v_pk_cand, pk_ptr, 2144, pkc_int, pk_int).
+  { subst pkc_int pk_int. split; apply Hbr. }
   Intros r.
   (* VST's Intros doesn't name bare PROP props, so grab by pattern. *)
   match goal with

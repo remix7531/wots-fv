@@ -1,4 +1,4 @@
-(** * body_wots_pk_from_sig: VST body proof for [wots_pk_from_sig]. *)
+(** * body_wotsfv_pk_from_sig: VST body proof for [wots_pk_from_sig]. *)
 (** Copyright (C) 2026 remix7531
     SPDX-License-Identifier: GPL-3.0-or-later *)
 
@@ -8,10 +8,18 @@ From wots Require Import model.wots model.notation model.correct.
 
 Open Scope Z_scope.
 
-Lemma body_wots_pk_from_sig :
-  semax_body Vprog Gprog f_wots_pk_from_sig wots_pk_from_sig_spec.
+Lemma body_wotsfv_pk_from_sig :
+  semax_body Vprog Gprog f_wotsfv_pk_from_sig wotsfv_pk_from_sig_spec.
 Proof.
   start_function.
+
+  (* ===== Null-check prelude (dead panic branches) ===== *)
+
+  step_null_assert pk_ptr  Hpk.
+  step_null_assert sig_ptr Hsig.
+  step_null_assert msg_ptr Hmsg.
+  step_null_assert ps_ptr  Hps.
+  step_null_assert a_ptr   Ha.
 
   (* ===== Setup ===== *)
 
@@ -176,15 +184,25 @@ Proof.
       f_equal.
       finish_slot_addr pSIG Hfc_sig. }
 
+    (* ===== Reset addr scratch slots ===== *)
+
     (* Store addr[5] = i *)
     forward.
     rewrite upd_adrs_5.
+
+    (* Store addr[6] = 0 *)
+    forward.
+    rewrite upd_adrs_6.
+
+    (* Store addr[7] = 0 *)
+    forward.
+    rewrite upd_adrs_7.
 
     (* Convert pSUFF back from Vint for chain call. *)
     unfold SCHUNK_int.
     rewrite <- !(block_to_vals_eq_Vint (nth (Z.to_nat i) sig default)).
 
-    (* Load digits[i] into _t'1 *)
+    (* Load digits[i] into _t'5 *)
     change (Z.of_nat len) with 67.
     assert (Hi_digit_le :
         (nth (Z.to_nat i) (expand_msg msg) 0%nat <= 15)%nat)
@@ -195,10 +213,10 @@ Proof.
     rewrite Znth_map by lia.
     fold digits_to_vals.
 
-    (* Load digits[i] into _t'2 *)
+    (* Load digits[i] into _t'6 *)
     forward.
     { entailer!.
-      rewrite Znth_map by lia. 
+      rewrite Znth_map by lia.
       unfold Vubyte.
       simpl.
       pose proof (Byte.unsigned_range
@@ -212,7 +230,8 @@ Proof.
                   15 - Z.of_nat (Znth i (expand_msg msg)),
                   nth (Z.to_nat i) sig default,
                   pub_seed,
-                  setChainAddress a_cur i,
+                  setKeyAndMask
+                    (setHashAddress (setChainAddress a_cur i) 0) 0,
                   sh_pk, sh_ps, sh_a).
     { entailer!.
       simpl.
@@ -255,9 +274,20 @@ Proof.
 
     (* chain output on pSUFF = pkFromSig_block *)
     replace i with (Z.of_nat (Z.to_nat i)) at 7 by lia.
+    replace (setKeyAndMask
+               (setHashAddress (setChainAddress a_cur (Z.of_nat (Z.to_nat i))) 0) 0)
+      with (setChainAddress
+              (setKeyAndMask (setHashAddress a_cur 0) 0)
+              (Z.of_nat (Z.to_nat i)))
+      by (destruct a_cur; reflexivity).
     rewrite (chain_pkFromSig_block_struct_eq sig msg pub_seed
-               (Z.to_nat i) a_cur a) by assumption.
-    Exists (chain_addr_post (setChainAddress a_cur i)
+               (Z.to_nat i)
+               (setKeyAndMask (setHashAddress a_cur 0) 0) a).
+    2: { destruct a_cur as [al ath atl aty aot ac ah akm].
+         unfold adrs_struct_eq in *; simpl in *; tauto. }
+    Exists (chain_addr_post
+              (setKeyAndMask
+                 (setHashAddress (setChainAddress a_cur i) 0) 0)
               (nth (Z.to_nat i) (expand_msg msg) 0%nat)
               (w_pred -
                nth (Z.to_nat i) (expand_msg msg) 0%nat)).
