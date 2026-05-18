@@ -135,7 +135,7 @@ Definition derive_sk_addr_post (a : adrs) (chain_i : Z) : adrs :=
 (** Post-state of [addr] after the public [wots_pkgen] loop:
     last iteration runs [derive_sk] (chain=len-1, hash=0, km=0)
     followed by [chain] over 15 steps (hash=14, km=1). *)
-Definition wots_pkgen_addr_post (a : adrs) : adrs :=
+Definition wotsfv_pkgen_addr_post (a : adrs) : adrs :=
   chain_addr_post
     (derive_sk_addr_post a (Z.of_nat (len - 1))) 0 w_pred.
 
@@ -143,7 +143,7 @@ Definition wots_pkgen_addr_post (a : adrs) : adrs :=
     Depends on the last message digit [msg[len-1]]: if it's zero the
     inner [chain] call is a no-op and addr is left in the post-
     [derive_sk] state. *)
-Definition wots_sign_addr_post (a : adrs) (msg : block) : adrs :=
+Definition wotsfv_sign_addr_post (a : adrs) (msg : block) : adrs :=
   chain_addr_post
     (derive_sk_addr_post a (Z.of_nat (len - 1))) 0
     (nth (len - 1) (expand_msg msg) 0%nat).
@@ -151,8 +151,8 @@ Definition wots_sign_addr_post (a : adrs) (msg : block) : adrs :=
 (* ================================================================= *)
 (** ** Public API funspecs. *)
 
-Definition wots_pkgen_spec : ident * funspec :=
-  DECLARE _wots_pkgen
+Definition wotsfv_pkgen_spec : ident * funspec :=
+  DECLARE _wotsfv_pkgen
   WITH pk_ptr : val, sk_ptr : val, ps_ptr : val, a_ptr : val,
        sk_seed : block, pub_seed : block, a : adrs,
        sh_pk : share, sh_sk : share, sh_ps : share, sh_a : share
@@ -172,10 +172,10 @@ Definition wots_pkgen_spec : ident * funspec :=
          data_at sh_sk (tarray tuchar n_bytes) (block_to_vals sk_seed) sk_ptr;
          data_at sh_ps (tarray tuchar n_bytes) (block_to_vals pub_seed) ps_ptr;
          data_at sh_a  t_addr
-                 (adrs_to_vals (wots_pkgen_addr_post a)) a_ptr).
+                 (adrs_to_vals (wotsfv_pkgen_addr_post a)) a_ptr).
 
-Definition wots_sign_spec : ident * funspec :=
-  DECLARE _wots_sign
+Definition wotsfv_sign_spec : ident * funspec :=
+  DECLARE _wotsfv_sign
   WITH sig_ptr : val, msg_ptr : val, sk_ptr : val, ps_ptr : val, a_ptr : val,
        msg : block, sk_seed : block, pub_seed : block, a : adrs,
        sh_sig : share, sh_m : share, sh_sk : share, sh_ps : share, sh_a : share
@@ -198,10 +198,10 @@ Definition wots_sign_spec : ident * funspec :=
          data_at sh_sk (tarray tuchar n_bytes) (block_to_vals sk_seed)  sk_ptr;
          data_at sh_ps (tarray tuchar n_bytes) (block_to_vals pub_seed) ps_ptr;
          data_at sh_a  t_addr
-                 (adrs_to_vals (wots_sign_addr_post a msg)) a_ptr).
+                 (adrs_to_vals (wotsfv_sign_addr_post a msg)) a_ptr).
 
-Definition wots_pk_from_sig_spec : ident * funspec :=
-  DECLARE _wots_pk_from_sig
+Definition wotsfv_pk_from_sig_spec : ident * funspec :=
+  DECLARE _wotsfv_pk_from_sig
   WITH pk_ptr : val, sig_ptr : val, msg_ptr : val, ps_ptr : val, a_ptr : val,
        sig : list block, msg : block, pub_seed : block, a : adrs,
        sh_pk : share, sh_sig : share, sh_m : share, sh_ps : share, sh_a : share
@@ -227,8 +227,8 @@ Definition wots_pk_from_sig_spec : ident * funspec :=
          data_at sh_ps  (tarray tuchar n_bytes) (block_to_vals pub_seed) ps_ptr;
          data_at sh_a   t_addr                  (adrs_to_vals a')        a_ptr).
 
-Definition wots_verify_spec : ident * funspec :=
-  DECLARE _wots_verify
+Definition wotsfv_verify_spec : ident * funspec :=
+  DECLARE _wotsfv_verify
   WITH pk_ptr : val, sig_ptr : val, msg_ptr : val, ps_ptr : val, a_ptr : val,
        pk : list block, sig : list block, msg : block, pub_seed : block, a : adrs,
        sh_pk : share, sh_sig : share, sh_m : share, sh_ps : share, sh_a : share

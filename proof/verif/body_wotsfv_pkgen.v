@@ -1,4 +1,4 @@
-(** * body_wots_pkgen: VST body proof for [wots_pkgen]. *)
+(** * body_wotsfv_pkgen: VST body proof for [wotsfv_pkgen]. *)
 (** Copyright (C) 2026 remix7531
     SPDX-License-Identifier: GPL-3.0-or-later *)
 
@@ -8,9 +8,16 @@ From wots Require Import model.wots model.notation.
 
 Open Scope Z_scope.
 
-Lemma body_wots_pkgen : semax_body Vprog Gprog f_wots_pkgen wots_pkgen_spec.
+Lemma body_wotsfv_pkgen : semax_body Vprog Gprog f_wotsfv_pkgen wotsfv_pkgen_spec.
 Proof.
   start_function.
+
+  (* ===== Null-check prelude (dead panic branches) ===== *)
+
+  step_null_assert pk_ptr Hpk.
+  step_null_assert sk_ptr Hsk.
+  step_null_assert ps_ptr Hps.
+  step_null_assert a_ptr  Ha.
 
   (* ===== Setup ===== *)
 

@@ -100,7 +100,7 @@ all:
 
 lib:       $(LIB)
 ocaml-lib: $(OCAML_LIB)
-clight:    proof/clight/wots.v proof/clight/sha256.v proof/clight/util.v
+clight:    proof/clight/wots.v proof/clight/sha256.v
 
 test: $(VECTORS) $(MAIN)
 	./$(MAIN) < $(VECTORS)
@@ -112,7 +112,7 @@ retest:
 	@rm -f $(VECTORS)
 	@$(MAKE) --no-print-directory test N=$(N)
 
-proof: Makefile.coq proof/clight/wots.v proof/clight/sha256.v proof/clight/util.v
+proof: Makefile.coq proof/clight/wots.v proof/clight/sha256.v
 	@$(MAKE) -j $(NPROC) --no-print-directory -f Makefile.coq
 	@$(SUCCESS) "All Verifications Succeeded"
 
@@ -222,13 +222,9 @@ $(MAIN_OCAML): $(TEST_SRCS) $(TEST_HDRS) $(OCAML_LIB) $(LIB_HDRS)
 
 proof/clight/wots.v: src/wots.c src/wots.h src/sha256.h src/util.h
 	@mkdir -p $(@D)
-	clightgen -normalize -Isrc -Wp,-w -o $@ $<
+	clightgen -normalize -Isrc -Wp,-w -include src/util.c -o $@ src/wots.c
 
 proof/clight/sha256.v: src/sha256.c src/sha256.h src/util.h
-	@mkdir -p $(@D)
-	clightgen -normalize -Isrc -Wp,-w -o $@ $<
-
-proof/clight/util.v: src/util.c src/util.h
 	@mkdir -p $(@D)
 	clightgen -normalize -Isrc -Wp,-w -o $@ $<
 
@@ -243,4 +239,4 @@ clean:
 	fi
 	@rm -rf $(BUILD)
 	@rm -f Makefile.coq Makefile.coq.conf \
-	       proof/clight/wots.v proof/clight/sha256.v proof/clight/util.v
+	       proof/clight/wots.v proof/clight/sha256.v

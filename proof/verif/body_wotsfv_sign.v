@@ -1,4 +1,4 @@
-(** * body_wots_sign: VST body proof for [wots_sign]. *)
+(** * body_wotsfv_sign: VST body proof for [wots_sign]. *)
 (** Copyright (C) 2026 remix7531
     SPDX-License-Identifier: GPL-3.0-or-later *)
 
@@ -8,9 +8,17 @@ From wots Require Import model.wots model.notation model.correct.
 
 Open Scope Z_scope.
 
-Lemma body_wots_sign : semax_body Vprog Gprog f_wots_sign wots_sign_spec.
+Lemma body_wotsfv_sign : semax_body Vprog Gprog f_wotsfv_sign wotsfv_sign_spec.
 Proof.
   start_function.
+
+  (* ===== Null-check prelude (dead panic branches) ===== *)
+
+  step_null_assert sig_ptr Hp_sig.
+  step_null_assert msg_ptr Hp_msg.
+  step_null_assert sk_ptr  Hp_sk.
+  step_null_assert ps_ptr  Hp_ps.
+  step_null_assert a_ptr   Hp_a.
 
   (* ===== Setup: unfold sig_bytes, assert Zlength facts ===== *)
 

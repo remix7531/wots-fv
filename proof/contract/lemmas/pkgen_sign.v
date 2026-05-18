@@ -98,7 +98,7 @@ Definition pkgen_addr_step (a : adrs) (i : nat) : adrs :=
   addr_step (fun _ => w_pred) a i.
 
 Lemma pkgen_addr_step_len : forall a,
-  pkgen_addr_step a 67 = wots_pkgen_addr_post a.
+  pkgen_addr_step a 67 = wotsfv_pkgen_addr_post a.
 Proof. reflexivity. Qed.
 
 Lemma pkgen_block_Zlength : forall sk pub a i,
@@ -189,7 +189,7 @@ Definition sign_addr_step (a : adrs) (msg : block) (i : nat) : adrs :=
   addr_step (fun k => nth k (expand_msg msg) 0%nat) a i.
 
 Lemma sign_addr_step_len : forall a msg,
-  sign_addr_step a msg 67 = wots_sign_addr_post a msg.
+  sign_addr_step a msg 67 = wotsfv_sign_addr_post a msg.
 Proof. reflexivity. Qed.
 
 Lemma sign_block_Zlength : forall sk pub a msg i,
