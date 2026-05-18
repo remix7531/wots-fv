@@ -41,6 +41,7 @@
             coq
             coq-lsp
             flocq
+            vsrocq-language-server
           ]) ++ (with pkgs; [
             clang
             gcc
@@ -50,7 +51,6 @@
             m4
             openssl
             pkg-config
-            rocqPackages_9_0.vsrocq-language-server
             which
             # OCaml toolchain for building libwots_ocaml.a (see ocaml/).
             ocaml-ng.ocamlPackages_4_14.ocaml
