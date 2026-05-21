@@ -2,12 +2,17 @@
 # wots+fv build system.
 #
 # User-facing targets:
-#   make            full build: lib + tests + ocaml lib + ocaml tests + proof
+#   make            build the C library only (build/libwots.a)
+#                   for the OCaml reference lib use `make ocaml-lib`;
+#                   for the Clight ASTs use `make extract`
 #   make test       C library + tests
 #   make test-ocaml Rocq-extracted reference library + tests
-#   make proof      VST proofs
-#   make lint       clang-tidy + -fanalyzer + ASan/UBSan + MSan + CompCert + ctgrind (CI gate)
-#   make test-ct    ctgrind: constant-time check on wotsfv_sign
+#   make ocaml-lib  build OCaml-extracted reference library (build/libwots_ocaml.a)
+#   make extract    run clightgen (C -> Clight AST in proof/clight/) for prove
+#   make prove      VST / Rocq proofs (implies extract)
+#   make check      full CI gate: static + sanitizers + CompCert + ctgrind +
+#                   ocaml-lib + test-ocaml + extract + prove
+#   make check-ct   ctgrind: constant-time check on wotsfv_sign
 #                   under gcc, clang, and CompCert
 #   make clean
 #
@@ -25,17 +30,27 @@ N     ?= 512
 NPROC := $(shell nproc)
 
 ifeq ($(CC),ccomp)
-  CFLAGS = -std=c99 -Wall -O2 -Isrc -Wp,-w
+  # ccomp-only knobs:
+  #   -Wno-unknown-pragmas    silences gcc-specific #pragma in stdint.h
+  #   -Wp,-w                  silences preprocessor warnings.  The big
+  #                           one is glibc features.h's #warning about
+  #                           _FORTIFY_SOURCE needing GCC >=4.1; the Nix
+  #                           hardening wrapper injects -D_FORTIFY_SOURCE
+  #                           after our flags so -U_FORTIFY_SOURCE can't
+  #                           win the race -- suppress at the cpp level.
+  CCOMP_SUPPRESS = -Wno-unknown-pragmas -Wp,-w
+  CFLAGS = -std=c99 -Wall -O2 -Isrc $(CCOMP_SUPPRESS)
 else
+  CCOMP_SUPPRESS =
   CFLAGS = -std=c99 -Wall -Wextra -Wpedantic -Werror -O2 -Isrc
 endif
 
-# Sanitizer flags for `make test-asan`.
+# Sanitizer flags for `make check-asan`.
 ASAN_CFLAGS = -std=c99 -Wall -Wextra -Wpedantic -Werror -O1 -g \
               -fsanitize=address,undefined -fno-omit-frame-pointer \
               -fno-sanitize-recover=all -Isrc
 
-# MSan flags for `make test-msan`.  Clang-only; needs all linked code
+# MSan flags for `make check-msan`.  Clang-only; needs all linked code
 # instrumented, so we only run it against the pure C test path (not the
 # OCaml-extracted variant which pulls in uninstrumented runtime).
 MSAN_CFLAGS = -std=c99 -Wall -Wextra -Wpedantic -Werror -O1 -g \
@@ -72,7 +87,7 @@ CTGRIND    = $(BUILD)/test/ctgrind
 VALGRIND_CFLAGS := $(shell pkg-config --cflags valgrind 2>/dev/null)
 
 # Compiler for the ctgrind harness itself.  Defaults to $(CC) so the
-# harness matches the library; test-ct-ccomp overrides it to gcc since
+# harness matches the library; check-ct-ccomp overrides it to gcc since
 # CompCert cannot accept valgrind.h's client-request inline asm.
 HARNESS_CC ?= $(CC)
 
@@ -105,23 +120,17 @@ SUCCESS = printf '\033[1;34m✓ %s\033[0m\n'
 
 # ----- Top-level targets ----------------------------------------------------
 
-.PHONY: all lib ocaml-lib test test-ocaml retest clight proof clean \
-        test-asan test-msan test-ccomp \
-        test-ct test-ct-gcc test-ct-clang test-ct-ccomp \
-        lint lint-tidy lint-fanalyzer \
+.PHONY: all lib ocaml-lib test test-ocaml retest extract prove clean \
+        check-asan check-msan check-ccomp \
+        check-ct check-ct-gcc check-ct-clang check-ct-ccomp \
+        check check-tidy check-fanalyzer \
         main-bin ct-bin
 
-all:
-	@$(BANNER) "C library";                   $(MAKE) --no-print-directory lib
-	@$(BANNER) "C tests";                     $(MAKE) --no-print-directory test
-	@$(BANNER) "OCaml-extracted library";     $(MAKE) --no-print-directory ocaml-lib
-	@$(BANNER) "OCaml-extracted tests";       $(MAKE) --no-print-directory test-ocaml
-	@$(BANNER) "clightgen (C -> Clight AST)"; $(MAKE) --no-print-directory clight
-	@$(BANNER) "Rocq verification";           $(MAKE) --no-print-directory proof
+all: lib
 
 lib:       $(LIB)
 ocaml-lib: $(OCAML_LIB)
-clight:    proof/clight/wots.v proof/clight/sha256.v
+extract:   proof/clight/wots.v proof/clight/sha256.v
 
 test: $(VECTORS) $(MAIN)
 	./$(MAIN) < $(VECTORS)
@@ -133,7 +142,7 @@ retest:
 	@rm -f $(VECTORS)
 	@$(MAKE) --no-print-directory test N=$(N)
 
-proof: Makefile.coq proof/clight/wots.v proof/clight/sha256.v
+prove: Makefile.coq extract
 	@$(MAKE) -j $(NPROC) --no-print-directory -f Makefile.coq
 	@$(SUCCESS) "All Verifications Succeeded"
 
@@ -141,35 +150,46 @@ proof: Makefile.coq proof/clight/wots.v proof/clight/sha256.v
 # Each sub-target builds in its own BUILD=build/<config> subdir so they
 # can run side-by-side without clobbering each other's objects.  No
 # sub-target cleans on its own; `make clean` removes everything and
-# `make lint` does a single clean upfront.
+# `make check` does a single clean upfront.
 
-lint:
+check:
 	@$(MAKE) --no-print-directory clean
-	@$(MAKE) --no-print-directory lint-tidy
-	@$(MAKE) --no-print-directory lint-fanalyzer
-	@$(MAKE) --no-print-directory test-asan
-	@$(MAKE) --no-print-directory test-msan
-	@$(MAKE) --no-print-directory test-ccomp
-	@$(MAKE) --no-print-directory test-ct
+	@$(MAKE) --no-print-directory check-tidy
+	@$(MAKE) --no-print-directory check-fanalyzer
+	@$(MAKE) --no-print-directory check-asan
+	@$(MAKE) --no-print-directory check-msan
+	@$(MAKE) --no-print-directory check-ccomp
+	@$(MAKE) --no-print-directory check-ct
+	@$(BANNER) "OCaml-extracted reference lib"
+	@$(MAKE) --no-print-directory ocaml-lib
+	@$(BANNER) "OCaml-extracted reference tests"
+	@$(MAKE) --no-print-directory test-ocaml
+	@$(BANNER) "extract (clightgen)"
+	@$(MAKE) --no-print-directory extract
+	@$(BANNER) "prove (Rocq + VST)"
+	@$(MAKE) --no-print-directory prove
 
-lint-tidy:
+check-tidy:
 	@$(BANNER) "clang-tidy"
-	clang-tidy $(LIB_SRCS) $(TEST_SRCS) -- -std=c99 -Isrc -Itest -D_DEFAULT_SOURCE=1 $(SYS_INCLUDES)
+	@OUT=$$(clang-tidy --quiet --warnings-as-errors='*' \
+	    $(LIB_SRCS) $(TEST_SRCS) -- \
+	    -std=c99 -Isrc -Itest -D_DEFAULT_SOURCE=1 $(SYS_INCLUDES) 2>&1) \
+	    || { echo "$$OUT"; exit 1; }
 
-lint-fanalyzer:
+check-fanalyzer:
 	@$(BANNER) "gcc -fanalyzer"
 	@$(MAKE) --no-print-directory main-bin BUILD=build/fanalyzer \
 	    CC=gcc CFLAGS="$(CFLAGS) -fanalyzer"
 
-test-asan:
+check-asan:
 	@$(BANNER) "C tests (ASan + UBSan)"
 	@$(MAKE) --no-print-directory test BUILD=build/asan CFLAGS="$(ASAN_CFLAGS)"
 
-test-msan:
+check-msan:
 	@$(BANNER) "C tests (MSan)"
 	@$(MAKE) --no-print-directory test BUILD=build/msan CC=clang CFLAGS="$(MSAN_CFLAGS)"
 
-test-ccomp:
+check-ccomp:
 	@$(BANNER) "C tests (CompCert)"
 	@$(MAKE) --no-print-directory test BUILD=build/ccomp CC=ccomp
 
@@ -183,28 +203,28 @@ $(CTGRIND): test/ctgrind.c $(LIB) $(LIB_HDRS)
 	$(HARNESS_CC) -std=c99 -Wall -Wextra -Wpedantic -Werror -O1 -g -Isrc \
 	    $(VALGRIND_CFLAGS) -o $@ test/ctgrind.c $(LIB)
 
-# Phony aliases so test-ct-X can pass a goal that the outer make won't
+# Phony aliases so check-ct-X can pass a goal that the outer make won't
 # pre-expand under the wrong BUILD root.
 main-bin: $(MAIN)
 ct-bin:   $(CTGRIND)
 
-test-ct: test-ct-gcc test-ct-clang test-ct-ccomp
+check-ct: check-ct-gcc check-ct-clang check-ct-ccomp
 
-test-ct-gcc:
+check-ct-gcc:
 	@$(BANNER) "ctgrind on wotsfv_sign (gcc)"
 	@$(MAKE) --no-print-directory ct-bin BUILD=build/ct-gcc CC=gcc
 	valgrind -q --error-exitcode=1 --track-origins=yes \
 	    --leak-check=no --errors-for-leak-kinds=none ./build/ct-gcc/test/ctgrind
 	@$(SUCCESS) "wotsfv_sign: no secret-dependent branches (gcc)"
 
-test-ct-clang:
+check-ct-clang:
 	@$(BANNER) "ctgrind on wotsfv_sign (clang)"
 	@$(MAKE) --no-print-directory ct-bin BUILD=build/ct-clang CC=clang
 	valgrind -q --error-exitcode=1 --track-origins=yes \
 	    --leak-check=no --errors-for-leak-kinds=none ./build/ct-clang/test/ctgrind
 	@$(SUCCESS) "wotsfv_sign: no secret-dependent branches (clang)"
 
-test-ct-ccomp:
+check-ct-ccomp:
 	@$(BANNER) "ctgrind on wotsfv_sign (CompCert)"
 	@$(MAKE) --no-print-directory ct-bin BUILD=build/ct-ccomp CC=ccomp HARNESS_CC=gcc
 	valgrind -q --error-exitcode=1 --track-origins=yes \
@@ -240,7 +260,7 @@ $(MAIN): $(TEST_SRCS) $(TEST_HDRS) $(LIB) $(LIB_HDRS)
 
 $(GEN): test/gen_vectors.c
 	@mkdir -p $(@D)
-	$(CC) -std=c99 -Wall -O2 $(XMSSREF_CFLAGS) -o $@ test/gen_vectors.c $(XMSSREF_LDFLAGS)
+	$(CC) -std=c99 -Wall -O2 $(CCOMP_SUPPRESS) $(XMSSREF_CFLAGS) -o $@ test/gen_vectors.c $(XMSSREF_LDFLAGS)
 
 $(BUILD)/vectors-%.bin: $(GEN)
 	@mkdir -p $(@D)
@@ -304,7 +324,10 @@ proof/clight/sha256.v: src/sha256.c src/sha256.h src/util.h
 	@mkdir -p $(@D)
 	clightgen -normalize -Isrc -Wp,-w -o $@ $<
 
-Makefile.coq: _RocqProject
+# rocq makefile reads _RocqProject which lists the clight .v files, so
+# they must exist (via extract) before Makefile.coq is regenerated --
+# otherwise the generated rules reference missing inputs.
+Makefile.coq: _RocqProject proof/clight/wots.v proof/clight/sha256.v
 	@rocq makefile -f _RocqProject -o Makefile.coq
 
 # ----- Clean ----------------------------------------------------------------

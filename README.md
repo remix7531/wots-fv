@@ -26,11 +26,14 @@ interoperates with upstream vectors.
 
 ```
 nix develop      # devshell with CompCert, VST, xmss-reference, OCaml
-make             # c lib + ocaml lib + tests + clightgen + proofs
-make proof       # proofs only
+make             # build the C library (build/libwots.a) only
 make test        # vector comparison vs xmss-reference (N=512 default)
 make test-ocaml  # same vectors vs build/libwots_ocaml.a
-make lint        # clang-tidy + ASan/UBSan + CompCert (CI gate)
+make extract     # clightgen: C -> Clight AST for prove
+make prove       # VST / Rocq proofs
+make check       # full CI gate: static + sanitizers + CompCert + ctgrind +
+                 #               ocaml-lib + test-ocaml + extract + prove
+make check-ct    # ctgrind constant-time check (gcc + clang + CompCert)
 make clean
 ```
 
@@ -47,7 +50,8 @@ ocaml/        sources for Rocq-extracted library
 ## Rocq-extracted library
 
 `make ocaml-lib` produces `build/libwots_ocaml.a` — same ABI as
-`libwots.a`, with the OCaml runtime embedded via
+`libwots.a`, built from the OCaml that Rocq extracts out of the
+Gallina model in `proof/model/`, with the OCaml runtime embedded via
 `ocamlopt -output-complete-obj` so consumers need no OCaml at link time.
 `make test-ocaml` reuses the vector pipeline against that library.
 
