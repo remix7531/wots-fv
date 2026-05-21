@@ -42,30 +42,18 @@ jobs:
         run: nix develop --impure -c make test-ocaml
 
   check:
-    # `make check` locally also runs `prove`; CI runs the prove step as a
-    # separate continue-on-error job so proof regressions stay visible
-    # without blocking the rest of the quality gate.
+    # `make check` locally also runs `prove`; CI runs the prove step as
+    # a separate continue-on-error job so proof regressions stay visible
+    # without blocking the rest of the quality gate.  `check-no-prove`
+    # is the Makefile target that lists everything else, so adding a new
+    # sub-gate locally picks it up here automatically (no drift).
     name: check (tidy + fanalyzer + ASan/UBSan + MSan + CompCert + ctgrind)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: DeterminateSystems/nix-installer-action@v17
-      - name: make check-tidy
-        run: nix develop --impure -c make check-tidy
-      - name: make check-fanalyzer
-        run: nix develop --impure -c make check-fanalyzer
-      - name: make check-asan
-        run: nix develop --impure -c make check-asan
-      - name: make check-msan
-        run: nix develop --impure -c make check-msan
-      - name: make check-ccomp
-        run: nix develop --impure -c make check-ccomp
-      - name: make check-ct
-        run: nix develop --impure -c make check-ct
-      - name: make ocaml-lib
-        run: nix develop --impure -c make ocaml-lib
-      - name: make extract
-        run: nix develop --impure -c make extract
+      - name: make check-no-prove
+        run: nix develop --impure -c make check-no-prove
 
   prove:
     name: prove (Rocq + VST)
