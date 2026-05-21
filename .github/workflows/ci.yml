@@ -4,9 +4,7 @@
 #   test   gcc + OCaml-extracted reference library, vector + tamper + CAVS suite
 #   check  clang-tidy + -fanalyzer + ASan/UBSan + MSan + CompCert + ctgrind
 #          (make check, minus the `prove` step run separately below)
-#   prove  VST/Rocq verification (make prove) -- continue-on-error
-#          while the proofs are being repaired post-refactor; status
-#          stays visible without turning the overall run red.
+#   prove  VST/Rocq verification (make prove)
 #
 # The flake declares compcert as unfree; we accept it via env so the
 # devshell evaluates without prompting.
@@ -42,10 +40,9 @@ jobs:
         run: nix develop --impure -c make test-ocaml
 
   check:
-    # `make check` locally also runs `prove`; CI runs the prove step as
-    # a separate continue-on-error job so proof regressions stay visible
-    # without blocking the rest of the quality gate.  `check-no-prove`
-    # is the Makefile target that lists everything else, so adding a new
+    # `make check` locally also runs `prove`; CI runs the prove step
+    # as a separate job for clearer signal.  `check-no-prove` is the
+    # Makefile target that lists everything else, so adding a new
     # sub-gate locally picks it up here automatically (no drift).
     name: check (tidy + fanalyzer + ASan/UBSan + MSan + CompCert + ctgrind)
     runs-on: ubuntu-latest
@@ -58,7 +55,6 @@ jobs:
   prove:
     name: prove (Rocq + VST)
     runs-on: ubuntu-latest
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
       - uses: DeterminateSystems/nix-installer-action@v17
