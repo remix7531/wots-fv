@@ -53,7 +53,7 @@ cross-checked against `xmss-reference` (`make test-ocaml`).
 
 **Trusted base:** SHA-256 (axiomatized in `proof/contract/trusted.v`),
 the OCaml extraction pipeline + runtime, and the C compiler — though
-`make test-ccomp` exercises the CompCert-compiled binary.
+`make check-ccomp` exercises the CompCert-compiled binary.
 
 ## Compile-time options
 
