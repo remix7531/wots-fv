@@ -15,7 +15,6 @@ proof/contract/lemmas/chain.v
 proof/contract/lemmas/arith.v
 proof/contract/lemmas/pkgen_sign.v
 proof/contract/lemmas/verify.v
-proof/contract/lemmas/null_check.v
 proof/contract/lemmas.v
 proof/contract/helpers.v
 proof/contract/trusted.v

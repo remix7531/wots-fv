@@ -12,14 +12,6 @@ Lemma body_wotsfv_sign : semax_body Vprog Gprog f_wotsfv_sign wotsfv_sign_spec.
 Proof.
   start_function.
 
-  (* ===== Null-check prelude (dead panic branches) ===== *)
-
-  step_null_assert sig_ptr Hp_sig.
-  step_null_assert msg_ptr Hp_msg.
-  step_null_assert sk_ptr  Hp_sk.
-  step_null_assert ps_ptr  Hp_ps.
-  step_null_assert a_ptr   Hp_a.
-
   (* ===== Setup: unfold sig_bytes, assert Zlength facts ===== *)
 
   change sig_bytes with 2144.
