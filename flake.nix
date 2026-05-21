@@ -51,6 +51,7 @@
             m4
             openssl
             pkg-config
+            valgrind
             which
             # OCaml toolchain for building libwots_ocaml.a (see ocaml/).
             ocaml-ng.ocamlPackages_4_14.ocaml
