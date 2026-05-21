@@ -6,7 +6,9 @@
 #   make test       C library + tests
 #   make test-ocaml Rocq-extracted reference library + tests
 #   make proof      VST proofs
-#   make lint       clang-tidy + ASan/UBSan + CompCert (CI gate)
+#   make lint       clang-tidy + -fanalyzer + ASan/UBSan + MSan + CompCert + ctgrind (CI gate)
+#   make test-ct    ctgrind: constant-time check on wotsfv_sign
+#                   under gcc, clang, and CompCert
 #   make clean
 #
 # Knobs:
@@ -33,6 +35,13 @@ ASAN_CFLAGS = -std=c99 -Wall -Wextra -Wpedantic -Werror -O1 -g \
               -fsanitize=address,undefined -fno-omit-frame-pointer \
               -fno-sanitize-recover=all -Isrc
 
+# MSan flags for `make test-msan`.  Clang-only; needs all linked code
+# instrumented, so we only run it against the pure C test path (not the
+# OCaml-extracted variant which pulls in uninstrumented runtime).
+MSAN_CFLAGS = -std=c99 -Wall -Wextra -Wpedantic -Werror -O1 -g \
+              -fsanitize=memory -fsanitize-memory-track-origins=2 \
+              -fno-omit-frame-pointer -fno-sanitize-recover=all -Isrc
+
 # xmss-reference comes from the Nix devshell; XMSSREF_PREFIX is set in
 # flake.nix's shellHook.
 XMSSREF_CFLAGS  ?= -I$(XMSSREF_PREFIX)/include
@@ -57,6 +66,15 @@ LIB_HDRS = src/wots.h src/sha256.h src/util.h
 MAIN       = $(BUILD)/test/main
 MAIN_OCAML = $(BUILD)/test/main_ocaml
 GEN        = $(BUILD)/test/gen_vectors
+CTGRIND    = $(BUILD)/test/ctgrind
+
+# valgrind ships memcheck.h via pkg-config.
+VALGRIND_CFLAGS := $(shell pkg-config --cflags valgrind 2>/dev/null)
+
+# Compiler for the ctgrind harness itself.  Defaults to $(CC) so the
+# harness matches the library; test-ct-ccomp overrides it to gcc since
+# CompCert cannot accept valgrind.h's client-request inline asm.
+HARNESS_CC ?= $(CC)
 
 # Vectors live in $(BUILD)/vectors-$(N).bin so different N values cache
 # independently; `make retest` discards and regenerates at the current N.
@@ -88,7 +106,10 @@ SUCCESS = printf '\033[1;34m✓ %s\033[0m\n'
 # ----- Top-level targets ----------------------------------------------------
 
 .PHONY: all lib ocaml-lib test test-ocaml retest clight proof clean \
-        test-asan test-ccomp lint lint-tidy
+        test-asan test-msan test-ccomp \
+        test-ct test-ct-gcc test-ct-clang test-ct-ccomp \
+        lint lint-tidy lint-fanalyzer \
+        main-bin ct-bin
 
 all:
 	@$(BANNER) "C library";                   $(MAKE) --no-print-directory lib
@@ -117,23 +138,78 @@ proof: Makefile.coq proof/clight/wots.v proof/clight/sha256.v
 	@$(SUCCESS) "All Verifications Succeeded"
 
 # ----- Quality gates --------------------------------------------------------
-# `make lint` runs all three; CI fails if any sub-target fails.
+# Each sub-target builds in its own BUILD=build/<config> subdir so they
+# can run side-by-side without clobbering each other's objects.  No
+# sub-target cleans on its own; `make clean` removes everything and
+# `make lint` does a single clean upfront.
 
-lint: lint-tidy test-asan test-ccomp
+lint:
+	@$(MAKE) --no-print-directory clean
+	@$(MAKE) --no-print-directory lint-tidy
+	@$(MAKE) --no-print-directory lint-fanalyzer
+	@$(MAKE) --no-print-directory test-asan
+	@$(MAKE) --no-print-directory test-msan
+	@$(MAKE) --no-print-directory test-ccomp
+	@$(MAKE) --no-print-directory test-ct
 
 lint-tidy:
 	@$(BANNER) "clang-tidy"
 	clang-tidy $(LIB_SRCS) $(TEST_SRCS) -- -std=c99 -Isrc -Itest -D_DEFAULT_SOURCE=1 $(SYS_INCLUDES)
 
+lint-fanalyzer:
+	@$(BANNER) "gcc -fanalyzer"
+	@$(MAKE) --no-print-directory main-bin BUILD=build/fanalyzer \
+	    CC=gcc CFLAGS="$(CFLAGS) -fanalyzer"
+
 test-asan:
 	@$(BANNER) "C tests (ASan + UBSan)"
-	@$(MAKE) --no-print-directory clean
-	@$(MAKE) --no-print-directory test CFLAGS="$(ASAN_CFLAGS)"
+	@$(MAKE) --no-print-directory test BUILD=build/asan CFLAGS="$(ASAN_CFLAGS)"
+
+test-msan:
+	@$(BANNER) "C tests (MSan)"
+	@$(MAKE) --no-print-directory test BUILD=build/msan CC=clang CFLAGS="$(MSAN_CFLAGS)"
 
 test-ccomp:
 	@$(BANNER) "C tests (CompCert)"
-	@$(MAKE) --no-print-directory clean
-	@$(MAKE) --no-print-directory test CC=ccomp
+	@$(MAKE) --no-print-directory test BUILD=build/ccomp CC=ccomp
+
+# ctgrind: run wotsfv_sign under valgrind with sk_seed marked
+# uninitialized.  Any branch or memory index dependent on a secret
+# byte is reported and --error-exitcode=1 fails the build.  Run
+# across gcc / clang / CompCert since each can lower constant-time
+# source to branchy code differently.
+$(CTGRIND): test/ctgrind.c $(LIB) $(LIB_HDRS)
+	@mkdir -p $(@D)
+	$(HARNESS_CC) -std=c99 -Wall -Wextra -Wpedantic -Werror -O1 -g -Isrc \
+	    $(VALGRIND_CFLAGS) -o $@ test/ctgrind.c $(LIB)
+
+# Phony aliases so test-ct-X can pass a goal that the outer make won't
+# pre-expand under the wrong BUILD root.
+main-bin: $(MAIN)
+ct-bin:   $(CTGRIND)
+
+test-ct: test-ct-gcc test-ct-clang test-ct-ccomp
+
+test-ct-gcc:
+	@$(BANNER) "ctgrind on wotsfv_sign (gcc)"
+	@$(MAKE) --no-print-directory ct-bin BUILD=build/ct-gcc CC=gcc
+	valgrind -q --error-exitcode=1 --track-origins=yes \
+	    --leak-check=no --errors-for-leak-kinds=none ./build/ct-gcc/test/ctgrind
+	@$(SUCCESS) "wotsfv_sign: no secret-dependent branches (gcc)"
+
+test-ct-clang:
+	@$(BANNER) "ctgrind on wotsfv_sign (clang)"
+	@$(MAKE) --no-print-directory ct-bin BUILD=build/ct-clang CC=clang
+	valgrind -q --error-exitcode=1 --track-origins=yes \
+	    --leak-check=no --errors-for-leak-kinds=none ./build/ct-clang/test/ctgrind
+	@$(SUCCESS) "wotsfv_sign: no secret-dependent branches (clang)"
+
+test-ct-ccomp:
+	@$(BANNER) "ctgrind on wotsfv_sign (CompCert)"
+	@$(MAKE) --no-print-directory ct-bin BUILD=build/ct-ccomp CC=ccomp HARNESS_CC=gcc
+	valgrind -q --error-exitcode=1 --track-origins=yes \
+	    --leak-check=no --errors-for-leak-kinds=none ./build/ct-ccomp/test/ctgrind
+	@$(SUCCESS) "wotsfv_sign: no secret-dependent branches (CompCert)"
 
 # ----- C library + tests ----------------------------------------------------
 
