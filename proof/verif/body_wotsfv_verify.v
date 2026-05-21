@@ -12,14 +12,6 @@ Lemma body_wotsfv_verify : semax_body Vprog Gprog f_wotsfv_verify wotsfv_verify_
 Proof.
   start_function.
 
-  (* ===== Null-check prelude (dead panic branches) ===== *)
-
-  step_null_assert pk_ptr  Hpk.
-  step_null_assert sig_ptr Hsig.
-  step_null_assert msg_ptr Hmsg.
-  step_null_assert ps_ptr  Hps.
-  step_null_assert a_ptr   Ha.
-
   (* ===== Setup: resolve pk_bytes constant ===== *)
 
   change pk_bytes with 2144 in *.

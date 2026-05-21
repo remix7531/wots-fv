@@ -70,10 +70,10 @@ static void copy_bytes_out(value v, uint8_t *dst, size_t len) {
     memcpy(dst, Bytes_val(v), len);
 }
 
-void wotsfv_pkgen(uint8_t       *restrict pk,
-                  const uint8_t *restrict sk_seed,
-                  const uint8_t *restrict pub_seed,
-                  uint32_t                addr[restrict 8]) {
+void wotsfv_pkgen(uint8_t       pk      [static restrict WOTSFV_PK_BYTES],
+                  const uint8_t sk_seed [static restrict WOTSFV_SK_SEED_BYTES],
+                  const uint8_t pub_seed[static restrict WOTSFV_PUB_SEED_BYTES],
+                  uint32_t      addr    [static restrict 8]) {
     CAMLparam0();
     CAMLlocal4(sk, ps, ad, res);
     static const value *cb = NULL;
@@ -87,11 +87,11 @@ void wotsfv_pkgen(uint8_t       *restrict pk,
     CAMLreturn0;
 }
 
-void wotsfv_sign(uint8_t       *restrict sig,
-                 const uint8_t *restrict msg,
-                 const uint8_t *restrict sk_seed,
-                 const uint8_t *restrict pub_seed,
-                 uint32_t                addr[restrict 8]) {
+void wotsfv_sign(uint8_t       sig     [static restrict WOTSFV_SIG_BYTES],
+                 const uint8_t msg     [static restrict WOTSFV_MSG_BYTES],
+                 const uint8_t sk_seed [static restrict WOTSFV_SK_SEED_BYTES],
+                 const uint8_t pub_seed[static restrict WOTSFV_PUB_SEED_BYTES],
+                 uint32_t      addr    [static restrict 8]) {
     CAMLparam0();
     CAMLlocal5(m, sk, ps, ad, res);
     value argv[4];
@@ -109,11 +109,11 @@ void wotsfv_sign(uint8_t       *restrict sig,
     CAMLreturn0;
 }
 
-void wotsfv_pk_from_sig(uint8_t       *restrict pk_cand,
-                        const uint8_t *restrict sig,
-                        const uint8_t *restrict msg,
-                        const uint8_t *restrict pub_seed,
-                        uint32_t                addr[restrict 8]) {
+void wotsfv_pk_from_sig(uint8_t       pk_cand [static restrict WOTSFV_PK_BYTES],
+                        const uint8_t sig     [static restrict WOTSFV_SIG_BYTES],
+                        const uint8_t msg     [static restrict WOTSFV_MSG_BYTES],
+                        const uint8_t pub_seed[static restrict WOTSFV_PUB_SEED_BYTES],
+                        uint32_t      addr    [static restrict 8]) {
     CAMLparam0();
     CAMLlocal5(sv, mv, psv, adv, res);
     value argv[4];
@@ -131,11 +131,11 @@ void wotsfv_pk_from_sig(uint8_t       *restrict pk_cand,
     CAMLreturn0;
 }
 
-int wotsfv_verify(const uint8_t *restrict pk,
-                  const uint8_t *restrict sig,
-                  const uint8_t *restrict msg,
-                  const uint8_t *restrict pub_seed,
-                  uint32_t                addr[restrict 8]) {
+int wotsfv_verify(const uint8_t pk      [static restrict WOTSFV_PK_BYTES],
+                  const uint8_t sig     [static restrict WOTSFV_SIG_BYTES],
+                  const uint8_t msg     [static restrict WOTSFV_MSG_BYTES],
+                  const uint8_t pub_seed[static restrict WOTSFV_PUB_SEED_BYTES],
+                  uint32_t      addr    [static restrict 8]) {
     CAMLparam0();
     CAMLlocal5(pkv, sv, mv, psv, adv);
     CAMLlocal1(res);

@@ -145,30 +145,21 @@ static void expand_digits(uint8_t digits[LEN], const uint8_t msg[N]) {
     digits[LEN1 + 2] = (uint8_t)((csum >> 0) & 0x0f);
 }
 
-void wotsfv_pkgen(uint8_t       *restrict pk,
-                  const uint8_t *restrict sk_seed,
-                  const uint8_t *restrict pub_seed,
-                  uint32_t                addr[restrict 8]) {
-    WOTSFV_ASSERT(pk);
-    WOTSFV_ASSERT(sk_seed);
-    WOTSFV_ASSERT(pub_seed);
-    WOTSFV_ASSERT(addr);
+void wotsfv_pkgen(uint8_t       pk      [static restrict WOTSFV_PK_BYTES],
+                  const uint8_t sk_seed [static restrict WOTSFV_SK_SEED_BYTES],
+                  const uint8_t pub_seed[static restrict WOTSFV_PUB_SEED_BYTES],
+                  uint32_t      addr    [static restrict 8]) {
     for (unsigned i = 0; i < LEN; i++) {
         derive_sk(pk + ((size_t)i * N), i, sk_seed, pub_seed, addr);
         chain(pk + ((size_t)i * N), 0, W - 1, pub_seed, addr);
     }
 }
 
-void wotsfv_sign(uint8_t       *restrict sig,
-                 const uint8_t *restrict msg,
-                 const uint8_t *restrict sk_seed,
-                 const uint8_t *restrict pub_seed,
-                 uint32_t                addr[restrict 8]) {
-    WOTSFV_ASSERT(sig);
-    WOTSFV_ASSERT(msg);
-    WOTSFV_ASSERT(sk_seed);
-    WOTSFV_ASSERT(pub_seed);
-    WOTSFV_ASSERT(addr);
+void wotsfv_sign(uint8_t       sig     [static restrict WOTSFV_SIG_BYTES],
+                 const uint8_t msg     [static restrict WOTSFV_MSG_BYTES],
+                 const uint8_t sk_seed [static restrict WOTSFV_SK_SEED_BYTES],
+                 const uint8_t pub_seed[static restrict WOTSFV_PUB_SEED_BYTES],
+                 uint32_t      addr    [static restrict 8]) {
     uint8_t digits[LEN];
     expand_digits(digits, msg);
     for (unsigned i = 0; i < LEN; i++) {
@@ -177,16 +168,11 @@ void wotsfv_sign(uint8_t       *restrict sig,
     }
 }
 
-void wotsfv_pk_from_sig(uint8_t       *restrict pk_cand,
-                        const uint8_t *restrict sig,
-                        const uint8_t *restrict msg,
-                        const uint8_t *restrict pub_seed,
-                        uint32_t                addr[restrict 8]) {
-    WOTSFV_ASSERT(pk_cand);
-    WOTSFV_ASSERT(sig);
-    WOTSFV_ASSERT(msg);
-    WOTSFV_ASSERT(pub_seed);
-    WOTSFV_ASSERT(addr);
+void wotsfv_pk_from_sig(uint8_t       pk_cand [static restrict WOTSFV_PK_BYTES],
+                        const uint8_t sig     [static restrict WOTSFV_SIG_BYTES],
+                        const uint8_t msg     [static restrict WOTSFV_MSG_BYTES],
+                        const uint8_t pub_seed[static restrict WOTSFV_PUB_SEED_BYTES],
+                        uint32_t      addr    [static restrict 8]) {
     uint8_t digits[LEN];
     expand_digits(digits, msg);
     for (unsigned i = 0; i < LEN; i++) {
@@ -198,16 +184,11 @@ void wotsfv_pk_from_sig(uint8_t       *restrict pk_cand,
     }
 }
 
-int wotsfv_verify(const uint8_t *restrict pk,
-                  const uint8_t *restrict sig,
-                  const uint8_t *restrict msg,
-                  const uint8_t *restrict pub_seed,
-                  uint32_t                addr[restrict 8]) {
-    WOTSFV_ASSERT(pk);
-    WOTSFV_ASSERT(sig);
-    WOTSFV_ASSERT(msg);
-    WOTSFV_ASSERT(pub_seed);
-    WOTSFV_ASSERT(addr);
+int wotsfv_verify(const uint8_t pk      [static restrict WOTSFV_PK_BYTES],
+                  const uint8_t sig     [static restrict WOTSFV_SIG_BYTES],
+                  const uint8_t msg     [static restrict WOTSFV_MSG_BYTES],
+                  const uint8_t pub_seed[static restrict WOTSFV_PUB_SEED_BYTES],
+                  uint32_t      addr    [static restrict 8]) {
     uint8_t pk_cand[WOTSFV_PK_BYTES];
     wotsfv_pk_from_sig(pk_cand, sig, msg, pub_seed, addr);
     return (wotsfv_ct_memcmp(pk_cand, pk, WOTSFV_PK_BYTES) == 0)

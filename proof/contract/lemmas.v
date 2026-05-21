@@ -13,4 +13,3 @@ From wots Require Export contract.lemmas.chain.
 From wots Require Export contract.lemmas.arith.
 From wots Require Export contract.lemmas.pkgen_sign.
 From wots Require Export contract.lemmas.verify.
-From wots Require Export contract.lemmas.null_check.

@@ -12,13 +12,6 @@ Lemma body_wotsfv_pkgen : semax_body Vprog Gprog f_wotsfv_pkgen wotsfv_pkgen_spe
 Proof.
   start_function.
 
-  (* ===== Null-check prelude (dead panic branches) ===== *)
-
-  step_null_assert pk_ptr Hpk.
-  step_null_assert sk_ptr Hsk.
-  step_null_assert ps_ptr Hps.
-  step_null_assert a_ptr  Ha.
-
   (* ===== Setup ===== *)
 
   change pk_bytes with 2144.

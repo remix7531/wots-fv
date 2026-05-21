@@ -44,9 +44,9 @@
    hash and key-and-mask slots (indices 5..7) are scratch and
    are clobbered by every API call below.
 
-   Spelled as a raw [restrict 8] in the function signatures (rather
-   than via this typedef) so the no-alias guarantee actually binds
-   to the parameter. */
+   Spelled as a raw [static restrict 8] in the function signatures
+   (rather than via this typedef) so the size + non-null + no-alias
+   guarantees actually bind to the parameter. */
 typedef uint32_t wotsfv_addr[8];
 
 enum wotsfv_result {
@@ -55,39 +55,39 @@ enum wotsfv_result {
 };
 
 /* Common preconditions for all four functions:
-     - all pointers non-NULL,
-     - each buffer is at least the byte count shown in its trailing
-       parameter comment,
-     - input/output buffers do not overlap,
+     - all pointers non-NULL (C99 [static N] notation makes this a
+       UB-on-violation contract the compiler can exploit),
+     - each buffer is at least N elements as declared,
+     - input/output buffers do not overlap (restrict),
      - addr's slots 5..7 are clobbered. */
 
 /* RFC 8391 Algorithm 4 (WOTS_genPK). */
-void wotsfv_pkgen(uint8_t        *restrict pk        /* WOTSFV_PK_BYTES        */,
-                  const uint8_t  *restrict sk_seed   /* WOTSFV_SK_SEED_BYTES   */,
-                  const uint8_t  *restrict pub_seed  /* WOTSFV_PUB_SEED_BYTES  */,
-                  uint32_t                 addr[restrict 8]);
+void wotsfv_pkgen(uint8_t        pk      [static restrict WOTSFV_PK_BYTES],
+                  const uint8_t  sk_seed [static restrict WOTSFV_SK_SEED_BYTES],
+                  const uint8_t  pub_seed[static restrict WOTSFV_PUB_SEED_BYTES],
+                  uint32_t       addr    [static restrict 8]);
 
 /* RFC 8391 Algorithm 5 (WOTS_sign). */
-void wotsfv_sign(uint8_t        *restrict sig        /* WOTSFV_SIG_BYTES       */,
-                 const uint8_t  *restrict msg        /* WOTSFV_MSG_BYTES       */,
-                 const uint8_t  *restrict sk_seed    /* WOTSFV_SK_SEED_BYTES   */,
-                 const uint8_t  *restrict pub_seed   /* WOTSFV_PUB_SEED_BYTES  */,
-                 uint32_t                 addr[restrict 8]);
+void wotsfv_sign(uint8_t        sig     [static restrict WOTSFV_SIG_BYTES],
+                 const uint8_t  msg     [static restrict WOTSFV_MSG_BYTES],
+                 const uint8_t  sk_seed [static restrict WOTSFV_SK_SEED_BYTES],
+                 const uint8_t  pub_seed[static restrict WOTSFV_PUB_SEED_BYTES],
+                 uint32_t       addr    [static restrict 8]);
 
 /* RFC 8391 Algorithm 6 (WOTS_pkFromSig).  Prefer wotsfv_verify for
    verification: it returns a single ok/fail rather than a buffer. */
-void wotsfv_pk_from_sig(uint8_t        *restrict pk_cand   /* WOTSFV_PK_BYTES       */,
-                        const uint8_t  *restrict sig       /* WOTSFV_SIG_BYTES      */,
-                        const uint8_t  *restrict msg       /* WOTSFV_MSG_BYTES      */,
-                        const uint8_t  *restrict pub_seed  /* WOTSFV_PUB_SEED_BYTES */,
-                        uint32_t                 addr[restrict 8]);
+void wotsfv_pk_from_sig(uint8_t        pk_cand [static restrict WOTSFV_PK_BYTES],
+                        const uint8_t  sig     [static restrict WOTSFV_SIG_BYTES],
+                        const uint8_t  msg     [static restrict WOTSFV_MSG_BYTES],
+                        const uint8_t  pub_seed[static restrict WOTSFV_PUB_SEED_BYTES],
+                        uint32_t       addr    [static restrict 8]);
 
 /* WOTS+ signature verification.
    Returns WOTSFV_OK or WOTSFV_VERIFY_FAILED. */
-int wotsfv_verify(const uint8_t  *restrict pk        /* WOTSFV_PK_BYTES        */,
-                  const uint8_t  *restrict sig       /* WOTSFV_SIG_BYTES       */,
-                  const uint8_t  *restrict msg       /* WOTSFV_MSG_BYTES       */,
-                  const uint8_t  *restrict pub_seed  /* WOTSFV_PUB_SEED_BYTES  */,
-                  uint32_t                 addr[restrict 8]);
+int wotsfv_verify(const uint8_t  pk      [static restrict WOTSFV_PK_BYTES],
+                  const uint8_t  sig     [static restrict WOTSFV_SIG_BYTES],
+                  const uint8_t  msg     [static restrict WOTSFV_MSG_BYTES],
+                  const uint8_t  pub_seed[static restrict WOTSFV_PUB_SEED_BYTES],
+                  uint32_t       addr    [static restrict 8]);
 
 #endif
