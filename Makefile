@@ -111,8 +111,11 @@ OCAML_INCDIR := $(shell $(OCAMLFIND) ocamlc -where)
 OCAMLFIND_IGNORE_DUPS_IN := $(shell $(OCAMLFIND) query digestif 2>/dev/null)
 export OCAMLFIND_IGNORE_DUPS_IN
 
-# Project args from _RocqProject for direct `rocq compile` calls.
-ROCQ_ARGS = $(shell grep -E '^-[A-Z]' _RocqProject | tr '\n' ' ')
+# Project args from _RocqProject.  Match any `-`-prefixed line so both
+# `-Q ...` and `-arg ...` are captured (the old `^-[A-Z]` regex silently
+# dropped `-arg`, so the -w/-deprecated-from-Coq suppression set in
+# _RocqProject:3 never reached hand-rolled `rocq compile` calls).
+ROCQ_ARGS = $(shell grep -E '^-' _RocqProject | tr '\n' ' ')
 
 # Cyan banner; blue success line.
 BANNER  = printf '\n\033[1;36m══ %s ══\033[0m\n'
@@ -123,7 +126,7 @@ SUCCESS = printf '\033[1;34m✓ %s\033[0m\n'
 .PHONY: all lib ocaml-lib test test-ocaml retest extract prove clean \
         check-asan check-msan check-ccomp \
         check-ct check-ct-gcc check-ct-clang check-ct-ccomp \
-        check check-tidy check-fanalyzer \
+        check check-no-prove check-tidy check-fanalyzer \
         main-bin ct-bin
 
 all: lib
@@ -152,7 +155,11 @@ prove: Makefile.coq extract
 # sub-target cleans on its own; `make clean` removes everything and
 # `make check` does a single clean upfront.
 
-check:
+# `check-no-prove` is the full quality gate minus the Rocq/VST proofs.
+# CI uses it so that `prove` can run as a separate continue-on-error
+# job while still keeping the rest of the gate hard-failing.  Anything
+# added to this list is picked up by CI for free.
+check-no-prove:
 	@$(MAKE) --no-print-directory clean
 	@$(MAKE) --no-print-directory check-tidy
 	@$(MAKE) --no-print-directory check-fanalyzer
@@ -166,6 +173,8 @@ check:
 	@$(MAKE) --no-print-directory test-ocaml
 	@$(BANNER) "extract (clightgen)"
 	@$(MAKE) --no-print-directory extract
+
+check: check-no-prove
 	@$(BANNER) "prove (Rocq + VST)"
 	@$(MAKE) --no-print-directory prove
 
@@ -276,15 +285,16 @@ $(BUILD)/vectors-%.bin: $(GEN)
 # libwots_ocaml.a is ABI-compatible with libwots.a, so the same test
 # harness can link against either.
 
-proof/model/notation.vo: proof/model/notation.v
-	@rocq compile $(ROCQ_ARGS) $<
-
-proof/model/wots.vo: proof/model/wots.v proof/model/notation.vo
-	@rocq compile $(ROCQ_ARGS) $<
-
-$(OCAML_EXTRACT): proof/model/wots.vo proof/model/extract.v
+# Build the model .vo and run extract.v via the project's Makefile.coq
+# so they get exactly the flags _RocqProject declares (notably
+# -arg -w -arg -deprecated-from-Coq), and so `prove` later doesn't
+# recompile what extract already built.  This couples ocaml-lib to
+# the clightgen output, since Makefile.coq is regenerated from
+# _RocqProject which lists proof/clight/*.v -- but clightgen is fast
+# and the alternative is two divergent compile paths for the same .v.
+$(OCAML_EXTRACT): proof/model/extract.v proof/model/wots.v proof/model/notation.v Makefile.coq
 	@mkdir -p $(@D)
-	@rocq compile $(ROCQ_ARGS) proof/model/extract.v
+	@$(MAKE) --no-print-directory -f Makefile.coq proof/model/extract.vo
 
 # Stage OCaml sources into build/ocaml/ alongside the extracted module so
 # ocamlopt's .cmi/.cmx/.o intermediates land in build/, not in the tree.
