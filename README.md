@@ -57,11 +57,14 @@ Gallina model in `proof/model/`, with the OCaml runtime embedded via
 
 ## Side channels
 
-`wotsfv_verify` operates only on public inputs (`pk`, `sig`, `msg`,
-`pub_seed`), so its timing is not security-relevant. `wotsfv_sign`
-and `wotsfv_pkgen` consume `sk_seed` and rely on the SHA-256 core
-being free of secret-dependent branches and table lookups; this is
-argued by inspection of `src/sha256.c`, not formally verified.
+`wotsfv_verify` and `wotsfv_pk_from_sig` operate only on public
+inputs (`pk`, `sig`, `msg`, `pub_seed`), so their timing is not
+security-relevant. `wotsfv_sign` and `wotsfv_pkgen` consume
+`sk_seed`; both are checked under `make check-ct` (valgrind/ctgrind
+with `sk_seed` marked uninitialized) against gcc, clang, and
+CompCert builds. This rules out secret-dependent branches and
+secret-dependent memory addresses on the paths actually exercised,
+but is not a proof.
 
 ## License
 
