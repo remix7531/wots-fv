@@ -64,7 +64,9 @@ XMSSREF_LDFLAGS ?= -L$(XMSSREF_PREFIX)/lib -lxmssref -lcrypto
 
 # clang-tidy bypasses the Nix gcc-wrapper that injects glibc's include path,
 # so discover the system include dirs from gcc and pass them as -isystem.
-SYS_INCLUDES := $(shell echo | $(CC) -E -Wp,-v -xc - 2>&1 \
+# Lazy `=` so the $(CC) probe runs only when check-tidy uses it -- a bare
+# `make clean` shouldn't pay for it.
+SYS_INCLUDES = $(shell echo | $(CC) -E -Wp,-v -xc - 2>&1 \
                   | sed -n 's|^ \(/.*\)|-isystem \1|p')
 
 # ----- Artifact paths -------------------------------------------------------
@@ -83,8 +85,9 @@ MAIN_OCAML = $(BUILD)/test/main_ocaml
 GEN        = $(BUILD)/test/gen_vectors
 CTGRIND    = $(BUILD)/test/ctgrind
 
-# valgrind ships memcheck.h via pkg-config.
-VALGRIND_CFLAGS := $(shell pkg-config --cflags valgrind 2>/dev/null)
+# valgrind ships memcheck.h via pkg-config.  Lazy so `make clean` and bare
+# `make` don't pay the pkg-config call when ctgrind isn't being touched.
+VALGRIND_CFLAGS = $(shell pkg-config --cflags valgrind 2>/dev/null)
 
 # Compiler for the ctgrind harness itself.  Defaults to $(CC) so the
 # harness matches the library; check-ct-ccomp overrides it to gcc since
@@ -105,10 +108,11 @@ OCAML_WRAP    = $(OCAML_BUILD)/wrap.o
 OCAMLFIND    ?= ocamlfind
 OCAMLOPT      = $(OCAMLFIND) ocamlopt
 OCAML_PKGS    = digestif.c
-OCAML_INCDIR := $(shell $(OCAMLFIND) ocamlc -where)
+# Lazy `=` so bare `make` / `make clean` don't shell out to ocamlfind.
+OCAML_INCDIR = $(shell $(OCAMLFIND) ocamlc -where)
 # digestif ships its main package and the [.c] subpackage with overlapping
 # .cmi files; tell findlib to ignore the dup in the parent dir.
-OCAMLFIND_IGNORE_DUPS_IN := $(shell $(OCAMLFIND) query digestif 2>/dev/null)
+OCAMLFIND_IGNORE_DUPS_IN = $(shell $(OCAMLFIND) query digestif 2>/dev/null)
 export OCAMLFIND_IGNORE_DUPS_IN
 
 # Project args from _RocqProject.  Match any `-`-prefixed line so both
@@ -117,9 +121,15 @@ export OCAMLFIND_IGNORE_DUPS_IN
 # _RocqProject:3 never reached hand-rolled `rocq compile` calls).
 ROCQ_ARGS = $(shell grep -E '^-' _RocqProject | tr '\n' ' ')
 
-# Cyan banner; blue success line.
-BANNER  = printf '\n\033[1;36m══ %s ══\033[0m\n'
-SUCCESS = printf '\033[1;34m✓ %s\033[0m\n'
+# Cyan banner; blue success line.  Disable colors when NO_COLOR is set
+# (https://no-color.org/) so CI logs stay readable.
+ifeq ($(strip $(NO_COLOR)),)
+  BANNER  = printf '\n\033[1;36m══ %s ══\033[0m\n'
+  SUCCESS = printf '\033[1;34m✓ %s\033[0m\n'
+else
+  BANNER  = printf '\n══ %s ══\n'
+  SUCCESS = printf '✓ %s\n'
+endif
 
 # ----- Top-level targets ----------------------------------------------------
 
@@ -344,7 +354,7 @@ Makefile.coq: _RocqProject proof/clight/wots.v proof/clight/sha256.v
 
 clean:
 	@if [ -e Makefile.coq ]; then \
-	    $(MAKE) --no-print-directory -f Makefile.coq cleanall 2>/dev/null; \
+	    $(MAKE) --no-print-directory -f Makefile.coq cleanall; \
 	fi
 	@rm -rf $(BUILD)
 	@rm -f Makefile.coq Makefile.coq.conf \
