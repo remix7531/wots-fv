@@ -12,7 +12,7 @@
 #   make prove      VST / Rocq proofs (implies extract)
 #   make check      full CI gate: static + sanitizers + CompCert + ctgrind +
 #                   ocaml-lib + test-ocaml + extract + prove
-#   make check-ct   ctgrind: constant-time check on wotsfv_sign
+#   make check-ct   ctgrind: constant-time check on wotsfv_pkgen + sign
 #                   under gcc, clang, and CompCert
 #   make clean
 #
@@ -193,11 +193,11 @@ check-ccomp:
 	@$(BANNER) "C tests (CompCert)"
 	@$(MAKE) --no-print-directory test BUILD=build/ccomp CC=ccomp
 
-# ctgrind: run wotsfv_sign under valgrind with sk_seed marked
-# uninitialized.  Any branch or memory index dependent on a secret
-# byte is reported and --error-exitcode=1 fails the build.  Run
-# across gcc / clang / CompCert since each can lower constant-time
-# source to branchy code differently.
+# ctgrind: run wotsfv_pkgen and wotsfv_sign under valgrind with
+# sk_seed marked uninitialized.  Any branch or memory index dependent
+# on a secret byte is reported and --error-exitcode=1 fails the
+# build.  Run across gcc / clang / CompCert since each can lower
+# constant-time source to branchy code differently.
 $(CTGRIND): test/ctgrind.c $(LIB) $(LIB_HDRS)
 	@mkdir -p $(@D)
 	$(HARNESS_CC) -std=c99 -Wall -Wextra -Wpedantic -Werror -O1 -g -Isrc \
@@ -211,25 +211,25 @@ ct-bin:   $(CTGRIND)
 check-ct: check-ct-gcc check-ct-clang check-ct-ccomp
 
 check-ct-gcc:
-	@$(BANNER) "ctgrind on wotsfv_sign (gcc)"
+	@$(BANNER) "ctgrind on wotsfv_pkgen+sign (gcc)"
 	@$(MAKE) --no-print-directory ct-bin BUILD=build/ct-gcc CC=gcc
 	valgrind -q --error-exitcode=1 --track-origins=yes \
 	    --leak-check=no --errors-for-leak-kinds=none ./build/ct-gcc/test/ctgrind
-	@$(SUCCESS) "wotsfv_sign: no secret-dependent branches (gcc)"
+	@$(SUCCESS) "wotsfv_pkgen/sign: no secret-dependent branches (gcc)"
 
 check-ct-clang:
-	@$(BANNER) "ctgrind on wotsfv_sign (clang)"
+	@$(BANNER) "ctgrind on wotsfv_pkgen+sign (clang)"
 	@$(MAKE) --no-print-directory ct-bin BUILD=build/ct-clang CC=clang
 	valgrind -q --error-exitcode=1 --track-origins=yes \
 	    --leak-check=no --errors-for-leak-kinds=none ./build/ct-clang/test/ctgrind
-	@$(SUCCESS) "wotsfv_sign: no secret-dependent branches (clang)"
+	@$(SUCCESS) "wotsfv_pkgen/sign: no secret-dependent branches (clang)"
 
 check-ct-ccomp:
-	@$(BANNER) "ctgrind on wotsfv_sign (CompCert)"
+	@$(BANNER) "ctgrind on wotsfv_pkgen+sign (CompCert)"
 	@$(MAKE) --no-print-directory ct-bin BUILD=build/ct-ccomp CC=ccomp HARNESS_CC=gcc
 	valgrind -q --error-exitcode=1 --track-origins=yes \
 	    --leak-check=no --errors-for-leak-kinds=none ./build/ct-ccomp/test/ctgrind
-	@$(SUCCESS) "wotsfv_sign: no secret-dependent branches (CompCert)"
+	@$(SUCCESS) "wotsfv_pkgen/sign: no secret-dependent branches (CompCert)"
 
 # ----- C library + tests ----------------------------------------------------
 

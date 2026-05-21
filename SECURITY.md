@@ -30,9 +30,11 @@ preimage resistance of SHA-256).
   same `(sk_seed, pub_seed, addr)` trivially forges. The surrounding
   XMSS / Merkle state machine must enforce one-shot use.
 * **Timing side-channels in signing.** `wotsfv_pkgen` / `wotsfv_sign`
-  feed `sk_seed` to SHA-256. Constant-time behaviour rests on
-  inspection of `src/sha256.c` (no secret-dependent branches or
-  table lookups), not on proof. `wotsfv_verify` is on public inputs.
+  feed `sk_seed` to SHA-256. Both functions are checked under
+  `make check-ct` (valgrind/ctgrind) against gcc, clang, and CompCert
+  builds -- this rules out secret-dependent branches and addresses on
+  the executed paths but is not a proof. `wotsfv_verify` and
+  `wotsfv_pk_from_sig` operate on public inputs.
 * **Power / EM / fault / acoustic side-channels.** No countermeasures.
 * **Bad RNG.** Callers supply `sk_seed`; it must come from a CSPRNG.
 * **Secret residue.** No zeroization. Stack frames holding derived
