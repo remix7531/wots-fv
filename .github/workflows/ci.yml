@@ -34,6 +34,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: DeterminateSystems/nix-installer-action@v17
+      - uses: nix-community/cache-nix-action@v6
+        with:
+          primary-key: nix-${{ runner.os }}-test-${{ hashFiles('flake.lock') }}
+          restore-prefixes-first-match: nix-${{ runner.os }}-test-
+          gc-max-store-size-linux: 5G
+          purge: true
+          purge-prefixes: nix-${{ runner.os }}-test-
+          purge-created: 0
+          purge-last-accessed: 0
+          purge-primary-key: never
       - name: make test
         run: nix develop --impure -c make test
       - name: make test-ocaml
@@ -49,6 +59,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: DeterminateSystems/nix-installer-action@v17
+      - uses: nix-community/cache-nix-action@v6
+        with:
+          primary-key: nix-${{ runner.os }}-check-${{ hashFiles('flake.lock') }}
+          restore-prefixes-first-match: nix-${{ runner.os }}-check-
+          gc-max-store-size-linux: 5G
+          purge: true
+          purge-prefixes: nix-${{ runner.os }}-check-
+          purge-created: 0
+          purge-last-accessed: 0
+          purge-primary-key: never
       - name: make check-no-prove
         run: nix develop --impure -c make check-no-prove
 
@@ -58,5 +78,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: DeterminateSystems/nix-installer-action@v17
+      - uses: nix-community/cache-nix-action@v6
+        with:
+          primary-key: nix-${{ runner.os }}-prove-${{ hashFiles('flake.lock') }}
+          restore-prefixes-first-match: nix-${{ runner.os }}-prove-
+          gc-max-store-size-linux: 5G
+          purge: true
+          purge-prefixes: nix-${{ runner.os }}-prove-
+          purge-created: 0
+          purge-last-accessed: 0
+          purge-primary-key: never
       - name: make prove
         run: nix develop --impure -c make prove
