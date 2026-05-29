@@ -2,6 +2,8 @@
 
 [![ci](https://github.com/remix7531/wots-fv/actions/workflows/ci.yml/badge.svg)](https://github.com/remix7531/wots-fv/actions/workflows/ci.yml)
 
+**This project is looking for funding to build a formally verified SLH-DSA implementation**
+
 Machine-checked functional-correctness proof of a C implementation of
 RFC 8391 WOTS+ (`WOTSP-SHA2_256`), using VST on Rocq 9.0 + CompCert.
 
