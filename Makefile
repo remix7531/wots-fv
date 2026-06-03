@@ -121,6 +121,15 @@ export OCAMLFIND_IGNORE_DUPS_IN
 # _RocqProject:3 never reached hand-rolled `rocq compile` calls).
 ROCQ_ARGS = $(shell grep -E '^-' _RocqProject | tr '\n' ' ')
 
+# Proof-toolchain front-end.  VST on Iris (v3.1beta2) builds on Coq 8.20, whose
+# project-makefile generator is `coq_makefile` (compiler: `coqc`).  The Rocq 9.x
+# line ships the unified CLI instead (`rocq makefile` / `rocq compile`).  The
+# generator bakes the matching compiler into Makefile.coq, so flipping this one
+# knob switches the whole proof build between toolchains:
+#   Coq 8.20 (default):  COQ_MAKEFILE = coq_makefile
+#   Rocq 9.x:            COQ_MAKEFILE = rocq makefile
+COQ_MAKEFILE ?= coq_makefile
+
 # Cyan banner; blue success line.  Disable colors when NO_COLOR is set
 # (https://no-color.org/) so CI logs stay readable.
 ifeq ($(strip $(NO_COLOR)),)
@@ -344,11 +353,11 @@ proof/clight/sha256.v: src/sha256.c src/sha256.h src/util.h
 	@mkdir -p $(@D)
 	clightgen -normalize -Isrc -Wp,-w -o $@ $<
 
-# rocq makefile reads _RocqProject which lists the clight .v files, so
+# $(COQ_MAKEFILE) reads _RocqProject which lists the clight .v files, so
 # they must exist (via extract) before Makefile.coq is regenerated --
 # otherwise the generated rules reference missing inputs.
 Makefile.coq: _RocqProject proof/clight/wots.v proof/clight/sha256.v
-	@rocq makefile -f _RocqProject -o Makefile.coq
+	@$(COQ_MAKEFILE) -f _RocqProject -o Makefile.coq
 
 # ----- Clean ----------------------------------------------------------------
 
