@@ -23,6 +23,10 @@ From wots Require Export clight.sha256 contract.public.
 
 Open Scope Z_scope.
 
+(* Oracle-polymorphic VST3 style (see contract.public). *)
+Section trusted_specs.
+Context `{!VSTGS OK_ty Σ}.
+
 (** [sha256(out, in, inlen)]: writes the 32-byte digest of [in] to [out]. *)
 Definition sha256_spec : ident * funspec :=
   DECLARE _wotsfv_sha256
@@ -40,3 +44,5 @@ Definition sha256_spec : ident * funspec :=
     PROP () RETURN ()
     SEP (data_at sh_o (tarray tuchar 32) (block_to_vals (SHA256 input)) out_ptr;
          data_at sh_i (tarray tuchar inlen) (block_to_vals input) in_ptr).
+
+End trusted_specs.

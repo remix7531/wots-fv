@@ -7,17 +7,20 @@
     SPDX-License-Identifier: GPL-3.0-or-later *)
 
 From VST Require Export floyd.proofauto.
-From VST Require Export floyd.compat.
 From wots Require Export model.wots clight.wots.
 
+(* proofauto pulls in ssreflect (via Iris/stdpp), whose `rewrite` does not accept
+   the vanilla `rewrite lem by tac` clause this development uses throughout.  VST's
+   classic proof style wants the standard rewrite -- floyd.compat used to do this;
+   keep it ourselves now that the shim is gone. *)
+#[export] Unset SsrRewrite.
+
 (* VST on Iris (v3.1beta2): mpred := iProp Σ, so funspec/assert/semax_body are
-   Σ-parameterized.  [floyd.compat]'s [NoOracle] fixes Σ := VSTΣ unit (no ghost
-   state / external calls) and re-provides the classic VST seplog notations and
-   lemma names.  Importing it here -- and re-exporting the instance -- lets every
-   downstream contract/verif file keep its existing modern-syntax funspecs and
-   [semax_body] proofs without a per-file [Context {!VSTGS unit Σ}] section. *)
-Import NoOracle.
-#[export] Existing Instance NoOracle.VST_default.
+   Σ-parameterized.  Instead of fixing Σ := VSTΣ unit via floyd.compat's NoOracle
+   shim, this development stays *oracle-polymorphic* -- the idiomatic, future-proof
+   VST3 style: CompSpecs and Vprog are Σ-free and live at module level, while every
+   funspec / Gprog / semax_body is wrapped in a section parameterized by
+   [Context !VSTGS OK_ty Σ] (here, and in contract.gprog and the verif files). *)
 
 #[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
@@ -159,7 +162,15 @@ Definition wotsfv_sign_addr_post (a : adrs) (msg : block) : adrs :=
     (nth (len - 1) (expand_msg msg) 0%nat).
 
 (* ================================================================= *)
-(** ** Public API funspecs. *)
+(** ** Public API funspecs.
+
+    Oracle-polymorphic VST3 style: the funspecs are parameterized over the Iris
+    functor [Σ] via [Context `{!VSTGS OK_ty Σ}].  [funspec]/[data_at] pick up [Σ]
+    from the section; [CompSpecs] comes from the module-level instance above.
+    After [End], each spec is [∀ {OK_ty Σ} {!VSTGS OK_ty Σ}, ident * funspec]. *)
+
+Section public_specs.
+Context `{!VSTGS OK_ty Σ}.
 
 Definition wotsfv_pkgen_spec : ident * funspec :=
   DECLARE _wotsfv_pkgen
@@ -227,7 +238,7 @@ Definition wotsfv_pk_from_sig_spec : ident * funspec :=
          data_at sh_ps  (tarray tuchar n_bytes) (block_to_vals pub_seed) ps_ptr;
          data_at sh_a   t_addr                  (adrs_to_vals a)         a_ptr)
   POST [ tvoid ]
-    EX a' : adrs,
+    ∃ a' : adrs,
     PROP ()
     RETURN ()
     SEP (data_at sh_pk (tarray tuchar pk_bytes)
@@ -258,7 +269,7 @@ Definition wotsfv_verify_spec : ident * funspec :=
          data_at sh_ps  (tarray tuchar n_bytes) (block_to_vals pub_seed) ps_ptr;
          data_at sh_a   t_addr                  (adrs_to_vals a)         a_ptr)
   POST [ tint ]
-    EX a' : adrs,
+    ∃ a' : adrs,
     PROP ()
     RETURN (Vint (Int.repr (if verify pk sig msg pub_seed a then 0 else -1)))
     SEP (data_at sh_pk  (tarray tuchar pk_bytes)  (blocks_to_vals pk)  pk_ptr;
@@ -266,3 +277,5 @@ Definition wotsfv_verify_spec : ident * funspec :=
          data_at sh_m   (tarray tuchar n_bytes) (block_to_vals msg)      msg_ptr;
          data_at sh_ps  (tarray tuchar n_bytes) (block_to_vals pub_seed) ps_ptr;
          data_at sh_a   t_addr                  (adrs_to_vals a')        a_ptr).
+
+End public_specs.

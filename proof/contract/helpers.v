@@ -8,9 +8,13 @@
 
 From VST Require Import floyd.proofauto.
 From wots Require Import contract.public.
-Import NoOracle.  (* Σ := VSTΣ unit, for the [funspecs] list type below *)
 
 Open Scope Z_scope.
+
+(* Oracle-polymorphic VST3 style (see contract.public): the helper funspecs and
+   their [Gprog_helpers] bundle are parameterized over [Σ] / [VSTGS]. *)
+Section helper_specs.
+Context `{!VSTGS OK_ty Σ}.
 
 (* ================================================================= *)
 (** ** In-tree libc alternatives ([src/util.c]).
@@ -66,7 +70,7 @@ Definition wotsfv_ct_memcmp_spec : ident * funspec :=
     SEP (data_at psh (tarray tuchar n) (map Vint p_contents) p;
          data_at qsh (tarray tuchar n) (map Vint q_contents) q)
   POST [ tint ]
-    EX r : int,
+    ∃ r : int,
     PROP (r = Int.zero <-> p_contents = q_contents)
     RETURN (Vint r)
     SEP (data_at psh (tarray tuchar n) (map Vint p_contents) p;
@@ -284,3 +288,5 @@ Definition Gprog_helpers : funspecs :=
     derive_sk_spec;
     chain_spec;
     expand_digits_spec ].
+
+End helper_specs.

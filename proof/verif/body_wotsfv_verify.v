@@ -8,6 +8,13 @@ From wots Require Import model.wots.
 
 Open Scope Z_scope.
 
+(* Oracle-polymorphic VST3 style (see contract.public).  This proof also showcases
+   the Iris Proof Mode at the postcondition entailment: iSplit / iPureIntro replace
+   the classic andp_right / prop_right, while data_at weakening + framing stay floyd
+   (sep_apply / cancel) since data_at is opaque to IPM. *)
+Section body_wotsfv_verify_proof.
+Context `{!VSTGS OK_ty Σ}.
+
 Lemma body_wotsfv_verify : semax_body Vprog Gprog f_wotsfv_verify wotsfv_verify_spec.
 Proof.
   start_function.
@@ -97,10 +104,20 @@ Proof.
     Exists a_post.
     subst pk_int pkc_int.
     rewrite <- (blocks_to_vals_eq_Vint pk).
-    apply andp_right; [apply prop_right; auto|].
+    (* data_at weakening stays floyd (data_at is opaque to IPM)... *)
     sep_apply (data_at_data_at_ Tsh (tarray tuchar 2144)
                 (map Vint (block_ints
                   (concat (pkFromSig msg sig pub_seed a))))
                 v_pk_cand).
-    cancel.
+    (* ...then close the [⌜retval⌝ ∧ SEP] postcondition with the Iris Proof Mode:
+       introduce the resources (iIntros), split the conjunction (iSplit), and
+       discharge the pure return-value side with iPureIntro -- replacing the
+       classic andp_right / prop_right.  The data_at SEP is then handed back to
+       floyd's cancel via iStopProof (data_at has no iFrame instance). *)
+    iIntros "Hres".
+    iSplit.
+    { iPureIntro; reflexivity. }
+    iStopProof; cancel.
 Qed.
+
+End body_wotsfv_verify_proof.

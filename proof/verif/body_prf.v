@@ -5,6 +5,15 @@
 From VST Require Import floyd.proofauto.
 From wots Require Import contract.gprog contract.lemmas.
 
+(* Oracle-polymorphic VST3 style: the body proof is parameterized over [Σ] /
+   [VSTGS] (see contract.public).  The data_at array split/join surgery below is
+   the idiomatic *assert-level* VST3 idiom -- [data_at] is opaque to the Iris
+   Proof Mode (no iFrame/iDestruct on arrays), so [gather_SEP] + the
+   [split2_data_at_Tarray_app] equality is exactly right; IPM is used where the
+   goal is a raw iProp (see body_wotsfv_verify for iSplit/iExists/iPureIntro). *)
+Section body_prf_proof.
+Context `{!VSTGS OK_ty Σ}.
+
 Lemma body_prf : semax_body Vprog Gprog f_prf prf_spec.
 Proof.
   start_function.
@@ -121,3 +130,5 @@ Proof.
   change (Z.of_nat n) with 32.
   entailer!.
 Qed.
+
+End body_prf_proof.

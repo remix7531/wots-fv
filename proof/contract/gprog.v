@@ -7,9 +7,13 @@
 
 From VST Require Export floyd.proofauto.
 From wots Require Export contract.trusted contract.public contract.helpers.
-Import NoOracle.  (* Σ := VSTΣ unit, for the [funspecs] list type below *)
 
 Open Scope Z_scope.
+
+(* Oracle-polymorphic VST3 style (see contract.public): [Gprog] and the trusted
+   [body_sha256] axiom are parameterized over [Σ] / [VSTGS]. *)
+Section gprog_def.
+Context `{!VSTGS OK_ty Σ}.
 
 (** Full program funspec bundle -- libc, sha256, helpers, then public API. *)
 Definition Gprog : funspecs :=
@@ -26,3 +30,5 @@ Definition Gprog : funspecs :=
     own model of SHA-256. The trusted surface is exactly this axiom plus
     [SHA256], [SHA256_length], [SHA256_byte_ok] in [model.wots]. *)
 Axiom body_sha256 : semax_body Vprog Gprog f_wotsfv_sha256 sha256_spec.
+
+End gprog_def.
