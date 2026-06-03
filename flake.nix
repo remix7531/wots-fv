@@ -11,15 +11,9 @@
       url = "github:NixOS/flake-compat";
       flake = false;
     };
-
-    # NOTE: pinned to the `feat/nix-flake` branch on the remix7531 fork while
-    # the Nix flake is in review upstream. Swap to
-    # `github:LLM4Rocq/rocq-mcp/<tag>` once the flake lands there.
-    rocq-mcp.url = "github:remix7531/rocq-mcp/feat/nix-flake";
-    rocq-mcp.inputs.flake-utils.follows = "flake-utils";
   };
 
-  outputs = { self, nixpkgs, flake-utils, flake-compat, rocq-mcp, ... }:
+  outputs = { self, nixpkgs, flake-utils, flake-compat, ... }:
     flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = import nixpkgs {
@@ -111,7 +105,6 @@
             ocaml-ng.ocamlPackages_4_14.ocaml-lsp
           ]) ++ [
             xmss-reference
-            rocq-mcp.packages.${system}.rocq-mcp
           ];
           shellHook = ''
             export COQPATH="${coqPath}"
