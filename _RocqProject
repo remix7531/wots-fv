@@ -1,4 +1,11 @@
 -Q proof wots
+
+# Silence the Iris-notation noise VST-on-Iris emits at every
+# `Require ... floyd.proofauto`: notation-prefix clashes between VST's and
+# Iris's notations, plus the `dfrac` custom-entry override.  These are upstream
+# warnings, not actionable from our side, and would otherwise flood `make prove`.
+-arg -w -arg -notation-incompatible-prefix,-custom-entry-overridden
+
 # Coq 8.20 / VST-on-Iris: clightgen output uses canonical `From Coq Require`,
 # so no deprecation suppression is needed here. (For the Rocq 9.x toolchain --
 # COQ_MAKEFILE=rocq makefile -- add: -arg -w -arg -deprecated-from-Coq)
