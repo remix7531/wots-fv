@@ -9,7 +9,7 @@
 (** Copyright (C) 2026 remix7531
     SPDX-License-Identifier: GPL-3.0-or-later *)
 
-From Stdlib Require Import List ZArith.
+From Coq Require Import List ZArith.
 From wots Require Export model.notation.
 Import ListNotations.
 Open Scope Z_scope.

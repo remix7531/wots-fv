@@ -6,7 +6,7 @@
 (** Copyright (C) 2026 remix7531
     SPDX-License-Identifier: GPL-3.0-or-later *)
 
-From Stdlib Require Import List ZArith Lia.
+From Coq Require Import List ZArith Lia.
 From wots Require Import model.wots.
 Import ListNotations.
 Open Scope Z_scope.

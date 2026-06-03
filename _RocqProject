@@ -1,6 +1,7 @@
 -Q proof wots
-# Suppress "From Coq" deprecation from clightgen-generated Source files
--arg -w -arg -deprecated-from-Coq
+# Coq 8.20 / VST-on-Iris: clightgen output uses canonical `From Coq Require`,
+# so no deprecation suppression is needed here. (For the Rocq 9.x toolchain --
+# COQ_MAKEFILE=rocq makefile -- add: -arg -w -arg -deprecated-from-Coq)
 
 proof/clight/sha256.v
 proof/clight/wots.v

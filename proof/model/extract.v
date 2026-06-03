@@ -6,8 +6,8 @@
 (** Copyright (C) 2026 remix7531
     SPDX-License-Identifier: GPL-3.0-or-later *)
 
-From Stdlib Require Import Extraction ExtrOcamlBasic.
-From Stdlib Require Import ExtrOcamlZInt ExtrOcamlNatInt.
+From Coq Require Import Extraction ExtrOcamlBasic.
+From Coq Require Import ExtrOcamlZInt ExtrOcamlNatInt.
 From wots Require Import model.wots.
 
 Set Extraction Output Directory "build/ocaml".
