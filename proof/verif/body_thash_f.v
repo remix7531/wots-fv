@@ -116,7 +116,8 @@ Proof.
     with  (data_at Tsh (tarray tuchar (64 - 32)) (Zrepeat Vundef (64 - 32))
              (field_address0 (tarray tuchar 64) (SUB 32) vb32))
     by (f_equal; f_equal; lia).
-  rewrite sepcon_assoc.
+  (* Iris SEP is right-associated: gather_SEP already groups the two chunks;
+     the VST 2.x sepcon_assoc step would re-break it, so drop it. *)
   assert (HlVundef : Zlength (Zrepeat (@Vundef) (64 - 32)) = 64 - 32)
     by split_sc.
   rewrite <- (split2_data_at_Tarray_app 32 64 Tsh tuchar KEY

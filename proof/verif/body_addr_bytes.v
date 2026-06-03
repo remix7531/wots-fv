@@ -56,7 +56,7 @@ Proof.
     assert (Hsucc : Z.to_nat (i + 1) = S (Z.to_nat i)) by lia.
     rewrite Hsucc, addr_bytes_prefix_succ by lia. fold v.
     rewrite block_to_vals_app, toByte_4_eq.
-    cbn [block_to_vals map].
+    cbn [block_to_vals List.map].
     rewrite !zero_ext_shru_byte by auto.
     rewrite zero_ext_byte.
 

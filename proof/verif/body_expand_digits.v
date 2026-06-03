@@ -100,7 +100,7 @@ Proof.
         by (rewrite <- ZtoNat_Zlength; lia).
       rewrite map_app, list_sum_app.
       rewrite Nat2Z.inj_add.
-      cbn [map list_sum].
+      cbn [List.map list_sum].
 
       replace (nth (Z.to_nat i) (flat_map nibbleF msg) 0%nat)
         with (Znth i (flat_map nibbleF msg))
@@ -158,7 +158,7 @@ Proof.
       unfold digits_to_vals at 2.
       rewrite map_app.
       fold digits_to_vals.
-      cbn [map].
+      cbn [List.map].
       change (let (q, _) := Z.div_eucl (Z.of_nat csum_nat) 256 in q)
         with (Z.of_nat csum_nat / 256).
       change (let (q, _) := Z.div_eucl (Z.of_nat csum_nat) 16 in q)

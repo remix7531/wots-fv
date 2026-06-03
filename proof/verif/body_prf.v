@@ -87,7 +87,9 @@ Proof.
     with  (data_at Tsh (tarray tuchar (64 - 32)) X3
              (field_address0 (tarray tuchar 64) (SUB 32) p32))
     by (f_equal; f_equal; lia).
-  rewrite sepcon_assoc.
+  (* VST on Iris builds the SEP list right-associated, so gather_SEP already
+     leaves X2 and X3 grouped as (X2 ∗ X3) -- no sepcon_assoc needed (VST 2.x's
+     left-assoc SEP required it; Iris's would here break the grouping). *)
   rewrite <- (split2_data_at_Tarray_app 32 64 Tsh tuchar X2 X3 p32
                 HlX2 HlX3).
   change (Tarray tuchar 96 noattr) with (tarray tuchar 96) in p32.
