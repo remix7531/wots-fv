@@ -76,35 +76,10 @@ Proof.
     forward.
     forward.
 
-    entailer!.
-    apply derives_refl'. f_equal.
-
-    assert (Hpfx_len :
-      Zlength (sublist 0 i (map Vint contents)) = i).
-    { rewrite Zlength_sublist; rewrite ?Zlength_map; lia. }
-
-    rewrite upd_Znth_app2
-      by (rewrite Hpfx_len, Zlength_Zrepeat by lia; lia).
-    rewrite Hpfx_len.
-    replace (i - i) with 0 by lia.
-
-    assert (Hrep : Zrepeat (@Vundef) (Zlength contents - i) =
-                   Vundef :: Zrepeat (@Vundef) (Zlength contents - i - 1)).
-    { unfold Zrepeat.
-      replace (Z.to_nat (Zlength contents - i))
-        with (S (Z.to_nat (Zlength contents - i - 1))) by lia.
-      reflexivity. }
-    rewrite Hrep.
-    rewrite upd_Znth0.
-
-    rewrite (sublist_split 0 i (i + 1) (map Vint contents))
-      by (rewrite ?Zlength_map; lia).
-    rewrite (sublist_one i (i + 1) (map Vint contents))
-      by (rewrite ?Zlength_map; lia).
-    rewrite Znth_map by lia.
-    rewrite <- app_assoc. simpl.
-    replace (Zlength contents - (i + 1)) with (Zlength contents - i - 1) by lia.
-    reflexivity.
+    (* The loop-invariant re-establishment is pure list algebra
+       (upd_Znth / sublist / Zrepeat / Znth_map): list_solve proves the
+       data_at array entailment directly via data_subsume_array_ext. *)
+    entailer!. list_solve.
 
   (* ===== Loop exit: collapse to [map Vint contents] ===== *)
 

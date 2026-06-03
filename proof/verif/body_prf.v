@@ -80,14 +80,10 @@ Proof.
   set (X3 := map Vint (block_ints in_buf)).
   set (X1 := upd_Znth (32 - 1) (repeat (Vint (Int.repr 0)) (Z.to_nat 32))
                       (Vint (Int.zero_ext 8 (Int.repr 3)))).
-  assert (HlX1 : Zlength X1 = 32)
-    by (subst X1; rewrite upd_Znth_Zlength; rewrite Zlength_repeat; lia).
-  assert (HlX2 : Zlength X2 = 32)
-    by (subst X2; rewrite Zlength_map; lia).
-  assert (HlX3 : Zlength X3 = 64 - 32)
-    by (subst X3; rewrite Zlength_map; lia).
-  assert (HlX23 : Zlength (X2 ++ X3) = 96 - 32)
-    by (rewrite Zlength_app, HlX2, HlX3; lia).
+  assert (HlX1 : Zlength X1 = 32) by (subst X1; list_solve).
+  assert (HlX2 : Zlength X2 = 32) by (subst X2; list_solve).
+  assert (HlX3 : Zlength X3 = 64 - 32) by (subst X3; list_solve).
+  assert (HlX23 : Zlength (X2 ++ X3) = 96 - 32) by list_solve.
 
   unfold p64.
   change (Tarray tuchar 64 noattr) with (tarray tuchar 64).

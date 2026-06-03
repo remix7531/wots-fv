@@ -57,8 +57,7 @@ Proof.
   set (X2 := block_to_vals
               (addr_bytes (setKeyAndMask
                 (setHashAddress (setChainAddress a chain_i) 0) 0))).
-  assert (HlX1 : Zlength X1 = 32)
-    by (subst X1; rewrite Zlength_map; lia).
+  assert (HlX1 : Zlength X1 = 32) by (subst X1; list_solve).
   assert (HlX2 : Zlength X2 = 64 - 32)
     by (subst X2; rewrite block_to_vals_length, addr_bytes_length; lia).
   unfold p32.

@@ -48,7 +48,7 @@ Proof.
         by (rewrite adrs_words_length; lia).
       apply I. }
 
-    do 7 forward. 
+    fastforward.
 
     entailer!.
     apply derives_refl'.

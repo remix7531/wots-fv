@@ -91,8 +91,7 @@ Proof.
   set (XOR := block_to_vals (xor in_buf
                 (PRF pub_seed (addr_bytes (setKeyAndMask a 1))))).
 
-  assert (HlZ0 : Zlength Z0 = 32)
-    by (subst Z0; rewrite Zlength_repeat; lia).
+  assert (HlZ0 : Zlength Z0 = 32) by (subst Z0; list_solve).
   assert (HlKEY : Zlength KEY = 32).
   { subst KEY. rewrite block_to_vals_length. apply SHA256_Zlength. }
   assert (HlPRF : Zlength (PRF pub_seed (addr_bytes (setKeyAndMask a 1))) = 32)
@@ -122,11 +121,11 @@ Proof.
   (* Iris SEP is right-associated: gather_SEP already groups the two chunks;
      the VST 2.x sepcon_assoc step would re-break it, so drop it. *)
   assert (HlVundef : Zlength (Zrepeat (@Vundef) (64 - 32)) = 64 - 32)
-    by split_sc.
+    by list_solve.
   rewrite <- (split2_data_at_Tarray_app 32 64 Tsh tuchar KEY
                 (Zrepeat Vundef (64 - 32)) vb32 HlKEY HlVundef).
   assert (HlKeyRest : Zlength (KEY ++ Zrepeat Vundef 32) = 96 - 32)
-    by (rewrite Zlength_app, HlKEY, Zlength_Zrepeat; lia).
+    by list_solve.
   unfold vb32.
   change (Tarray tuchar 96 noattr) with (tarray tuchar 96).
   rewrite <- (split2_data_at_Tarray_app 32 96 Tsh tuchar Z0

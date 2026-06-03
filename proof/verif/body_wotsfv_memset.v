@@ -51,14 +51,11 @@ Proof.
 
   - forward.
     entailer!.
-    apply derives_refl'. f_equal.
-    assert (Hzx : Int.zero_ext 8 c = c).
-    { apply zero_ext_inrange. simpl.
-      change (two_p 8) with 256. lia. }
+    (* The store wrote [zero_ext 8 c]; collapse it to [c] (c is a byte),
+       then list_solve proves the data_at array entailment directly. *)
+    assert (Hzx : Int.zero_ext 8 c = c)
+      by (apply zero_ext_inrange; simpl; change (two_p 8) with 256; lia).
     rewrite Hzx.
-    replace (Z.to_nat (i + 1)) with (Z.to_nat i + 1)%nat by lia.
-    rewrite repeat_app. simpl repeat.
-    rewrite <- app_assoc. simpl app.
     list_solve.
 
   (* ===== Loop exit ===== *)
