@@ -2,7 +2,9 @@
   description = "WOTS+ formal verification (RFC 8391, XMSS-SHA2_10_256) - Rocq + VST";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    # Stable release: ships coqPackages_9_0.VST + compcert, so the binary
+    # cache has prebuilt artifacts (no local VST/CompCert builds).
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
     flake-utils.url = "github:numtide/flake-utils";
     flake-compat = {
       url = "github:NixOS/flake-compat";
