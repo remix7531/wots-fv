@@ -8,6 +8,9 @@ From wots Require Import model.wots model.notation model.correct.
 
 Open Scope Z_scope.
 
+Section body_wotsfv_pk_from_sig_proof.
+Context `{!VSTGS OK_ty Σ}.
+
 Lemma body_wotsfv_pk_from_sig :
   semax_body Vprog Gprog f_wotsfv_pk_from_sig wotsfv_pk_from_sig_spec.
 Proof.
@@ -35,9 +38,9 @@ Proof.
 
   (* ===== forward_for_simple_bound invariant ===== *)
 
-  (* Main loop. Addr state is tracked existentially (post is EX a'). *)
+  (* Main loop. Addr state is tracked existentially (post is ∃ a'). *)
   forward_for_simple_bound 67
-    (EX i : Z, EX a_cur : adrs,
+    (∃ i : Z, ∃ a_cur : adrs,
       PROP (adrs_struct_eq a_cur a)
       LOCAL (temp _pk_cand pk_ptr; temp _sig sig_ptr;
              temp _msg msg_ptr; temp _pub_seed ps_ptr;
@@ -388,3 +391,5 @@ Proof.
       with (pkFromSig msg sig pub_seed a).
     entailer!.
 Qed.
+
+End body_wotsfv_pk_from_sig_proof.

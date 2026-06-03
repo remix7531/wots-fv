@@ -7,6 +7,9 @@ From wots Require Import contract.gprog.
 
 Open Scope Z_scope.
 
+Section body_wotsfv_memcpy_proof.
+Context `{!VSTGS OK_ty Σ}.
+
 Lemma body_wotsfv_memcpy :
   semax_body Vprog Gprog f_wotsfv_memcpy wotsfv_memcpy_spec.
 Proof.
@@ -32,7 +35,7 @@ Proof.
   (* ===== Main loop: byte-wise copy ===== *)
 
   forward_for_simple_bound n
-    (EX i : Z,
+    (∃ i : Z,
       PROP ()
       LOCAL (temp _d p; temp _s q; temp _dst p; temp _src q;
              temp _n (Vlong (Int64.repr n)))
@@ -113,3 +116,5 @@ Proof.
 
     forward.
 Qed.
+
+End body_wotsfv_memcpy_proof.

@@ -25,6 +25,12 @@ From wots Require Export model.wots clight.wots.
 #[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
+(* Native convenience lemma (floyd.compat used to provide this).  Σ-free, so it
+   lives at module level; the body proofs' [apply derives_refl'] data_at-
+   extensionality closers keep working without the shim. *)
+Lemma derives_refl' {B : bi} {P Q : B} : P = Q -> P ⊢ Q.
+Proof. intros; subst; auto. Qed.
+
 Open Scope Z_scope.
 
 (* ================================================================= *)

@@ -5,6 +5,9 @@
 From VST Require Import floyd.proofauto.
 From wots Require Import contract.gprog contract.lemmas.
 
+Section body_derive_sk_proof.
+Context `{!VSTGS OK_ty Σ}.
+
 Lemma body_derive_sk : semax_body Vprog Gprog f_derive_sk derive_sk_spec.
 Proof.
   start_function.
@@ -91,3 +94,5 @@ Proof.
   rewrite <- block_to_vals_eq_Vint.
   cancel.
 Qed.
+
+End body_derive_sk_proof.

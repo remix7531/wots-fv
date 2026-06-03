@@ -8,6 +8,9 @@ From wots Require Import model.wots model.notation.
 
 Open Scope Z_scope.
 
+Section body_wotsfv_pkgen_proof.
+Context `{!VSTGS OK_ty Σ}.
+
 Lemma body_wotsfv_pkgen : semax_body Vprog Gprog f_wotsfv_pkgen wotsfv_pkgen_spec.
 Proof.
   start_function.
@@ -19,7 +22,7 @@ Proof.
   (* ===== forward_for_simple_bound invariant ===== *)
 
   forward_for_simple_bound 67
-    (EX i : Z,
+    (∃ i : Z,
       PROP ()
       LOCAL (temp _pk pk_ptr; temp _sk_seed sk_ptr;
              temp _pub_seed ps_ptr; temp _addr a_ptr)
@@ -164,3 +167,5 @@ Proof.
       with (genPK sk_seed pub_seed a).
     entailer!.
 Qed.
+
+End body_wotsfv_pkgen_proof.

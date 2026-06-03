@@ -5,6 +5,9 @@
 From VST Require Import floyd.proofauto.
 From wots Require Import contract.gprog contract.lemmas.
 
+Section body_chain_proof.
+Context `{!VSTGS OK_ty Σ}.
+
 Lemma body_chain : semax_body Vprog Gprog f_chain chain_spec.
 Proof.
   start_function.
@@ -12,7 +15,7 @@ Proof.
   (* ===== forward_for_simple_bound invariant ===== *)
 
   forward_for_simple_bound steps
-    (EX j : Z,
+    (∃ j : Z,
       PROP ()
       LOCAL (temp _buf buf_ptr;
              temp _start (Vint (Int.repr start));
@@ -70,3 +73,5 @@ Proof.
 
   - entailer!.
 Qed.
+
+End body_chain_proof.

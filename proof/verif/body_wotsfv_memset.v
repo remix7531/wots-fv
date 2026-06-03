@@ -7,6 +7,9 @@ From wots Require Import contract.gprog.
 
 Open Scope Z_scope.
 
+Section body_wotsfv_memset_proof.
+Context `{!VSTGS OK_ty Σ}.
+
 Lemma body_wotsfv_memset : semax_body Vprog Gprog f_wotsfv_memset wotsfv_memset_spec.
 Proof.
 
@@ -30,7 +33,7 @@ Proof.
   (* ===== Loop: invariant builds [repeat (Vint c) i] prefix ===== *)
 
   forward_for_simple_bound n
-    (EX i : Z,
+    (∃ i : Z,
       PROP ()
       LOCAL (temp _d p; temp _b (Vint (Int.zero_ext 8 c));
              temp _dst p; temp _n (Vlong (Int64.repr n)))
@@ -67,3 +70,5 @@ Proof.
 
     forward.
 Qed.
+
+End body_wotsfv_memset_proof.

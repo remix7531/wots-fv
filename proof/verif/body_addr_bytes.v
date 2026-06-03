@@ -5,6 +5,9 @@
 From VST Require Import floyd.proofauto.
 From wots Require Import contract.gprog contract.lemmas.
 
+Section body_addr_bytes_proof.
+Context `{!VSTGS OK_ty Σ}.
+
 Lemma body_addr_bytes : semax_body Vprog Gprog f_addr_bytes addr_bytes_spec.
 Proof.
 
@@ -16,7 +19,7 @@ Proof.
          (accumulate addr_bytes_prefix) ===== *)
 
   forward_for_simple_bound 8
-    (EX i : Z,
+    (∃ i : Z,
       PROP ()
       LOCAL (temp _out out_ptr; temp _a a_ptr)
       SEP (data_at sh_o (tarray tuchar 32)
@@ -78,3 +81,5 @@ Proof.
 
   - entailer!.
 Qed.
+
+End body_addr_bytes_proof.

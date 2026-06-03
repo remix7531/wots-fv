@@ -120,6 +120,9 @@ Qed.
 
 (* ===== Body proof ===== *)
 
+Section body_wotsfv_ct_memcmp_proof.
+Context `{!VSTGS OK_ty Σ}.
+
 Lemma body_wotsfv_ct_memcmp :
   semax_body Vprog Gprog f_wotsfv_ct_memcmp wotsfv_ct_memcmp_spec.
 Proof.
@@ -141,7 +144,7 @@ Proof.
   (* ===== Loop: invariant carries byte-bound + biconditional ===== *)
 
   forward_for_simple_bound n
-    (EX i : Z, EX diff_v : int,
+    (∃ i : Z, ∃ diff_v : int,
       PROP (0 <= Int.unsigned diff_v < 256;
             diff_v = Int.zero <->
               sublist 0 i p_contents = sublist 0 i q_contents)
@@ -231,3 +234,5 @@ Proof.
     rewrite !sublist_same in Hbi by auto.
     exact Hbi.
 Qed.
+
+End body_wotsfv_ct_memcmp_proof.

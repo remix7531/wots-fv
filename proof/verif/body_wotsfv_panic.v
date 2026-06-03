@@ -12,9 +12,14 @@ From wots Require Import contract.gprog.
 
 Open Scope Z_scope.
 
+Section body_wotsfv_panic_proof.
+Context `{!VSTGS OK_ty Σ}.
+
 Lemma body_wotsfv_panic :
   semax_body Vprog Gprog f_wotsfv_panic wotsfv_panic_spec.
 Proof.
   start_function.
   contradiction.
 Qed.
+
+End body_wotsfv_panic_proof.

@@ -5,6 +5,9 @@
 From VST Require Import floyd.proofauto.
 From wots Require Import contract.gprog contract.lemmas.
 
+Section body_thash_f_proof.
+Context `{!VSTGS OK_ty Σ}.
+
 Lemma body_thash_f : semax_body Vprog Gprog f_thash_f thash_f_spec.
 Proof.
   start_function.
@@ -133,7 +136,7 @@ Proof.
 
   (* xor loop: for i in 0..32: v_buf[64+i] = in[i] ^ mask[i]. *)
   forward_for_simple_bound 32
-    (EX j : Z,
+    (∃ j : Z,
       PROP ()
       LOCAL (lvar _mask (tarray tuchar 32) v_mask;
              lvar _ab (tarray tuchar 32) v_ab;
@@ -231,3 +234,5 @@ Proof.
     forward_call (buf_ptr, v_buf, 96, INPUT, sh_b, Tsh).
     { entailer!. }
 Qed.
+
+End body_thash_f_proof.

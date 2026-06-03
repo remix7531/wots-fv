@@ -8,6 +8,9 @@ From wots Require Import model.wots.
 
 Open Scope Z_scope.
 
+Section body_expand_digits_proof.
+Context `{!VSTGS OK_ty Σ}.
+
 Lemma body_expand_digits :
   semax_body Vprog Gprog f_expand_digits expand_digits_spec.
 Proof.
@@ -21,7 +24,7 @@ Proof.
   (* ===== Phase 1: nibble extraction loop (i < 32) ===== *)
 
   forward_for_simple_bound 32
-    (EX i : Z,
+    (∃ i : Z,
       PROP ()
       LOCAL (temp _digits d_ptr; temp _msg m_ptr)
       SEP (data_at sh_d (tarray tuchar 67)
@@ -60,7 +63,7 @@ Proof.
     (* ===== Phase 2: checksum accumulator loop (j < 64) ===== *)
 
     forward_for_simple_bound 64
-      (EX j : Z,
+      (∃ j : Z,
         PROP ()
         LOCAL (temp _csum (Vint (Int.repr (Z.of_nat
                  (list_sum (map (fun d => w_pred - d)%nat
@@ -195,3 +198,5 @@ Proof.
         with (digits_to_vals (flat_map nibbleF msg)).
       list_solve.
 Qed.
+
+End body_expand_digits_proof.

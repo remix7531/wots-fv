@@ -5,6 +5,9 @@
 From VST Require Import floyd.proofauto.
 From wots Require Import contract.gprog contract.lemmas.
 
+Section body_prf_keygen_proof.
+Context `{!VSTGS OK_ty Σ}.
+
 Lemma body_prf_keygen : semax_body Vprog Gprog f_prf_keygen prf_keygen_spec.
 Proof.
   start_function.
@@ -123,3 +126,5 @@ Proof.
   unfold PRF_keygen.
   entailer!.
 Qed.
+
+End body_prf_keygen_proof.
