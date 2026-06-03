@@ -673,7 +673,7 @@ Proof.
   unfold base_w.
   cbn [flat_map].
   rewrite app_nil_r.
-  cbn [firstn].
+  cbv [List.firstn].
   cbn [app].
   f_equal.
   { f_equal.
@@ -692,7 +692,7 @@ Proof.
   intros l i Hall.
   revert i.
   induction l as [|x xs IH]; intros [|j]; try (cbn; lia).
-  cbn [firstn map list_sum].
+  cbn [firstn List.map list_sum].
   inversion Hall; subst.
   specialize (IH H2 j).
   assert (Hxx : (w_pred - x <= 15)%nat) by (unfold w_pred; lia).

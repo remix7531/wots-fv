@@ -231,7 +231,7 @@ Proof.
   rewrite length_map, length_concat.
 
   induction H as [|x xs Hx IH Hi]; [reflexivity|].
-  cbn [map].
+  cbn [List.map].
   assert (Hxlen : length x = 32%nat).
   { rewrite Zlength_correct in Hx.
     change n_bytes with 32 in Hx.

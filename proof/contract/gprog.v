@@ -7,6 +7,7 @@
 
 From VST Require Export floyd.proofauto.
 From wots Require Export contract.trusted contract.public contract.helpers.
+Import NoOracle.  (* Σ := VSTΣ unit, for the [funspecs] list type below *)
 
 Open Scope Z_scope.
 

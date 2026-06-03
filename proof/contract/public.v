@@ -7,7 +7,17 @@
     SPDX-License-Identifier: GPL-3.0-or-later *)
 
 From VST Require Export floyd.proofauto.
+From VST Require Export floyd.compat.
 From wots Require Export model.wots clight.wots.
+
+(* VST on Iris (v3.1beta2): mpred := iProp Σ, so funspec/assert/semax_body are
+   Σ-parameterized.  [floyd.compat]'s [NoOracle] fixes Σ := VSTΣ unit (no ghost
+   state / external calls) and re-provides the classic VST seplog notations and
+   lemma names.  Importing it here -- and re-exporting the instance -- lets every
+   downstream contract/verif file keep its existing modern-syntax funspecs and
+   [semax_body] proofs without a per-file [Context {!VSTGS unit Σ}] section. *)
+Import NoOracle.
+#[export] Existing Instance NoOracle.VST_default.
 
 #[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.

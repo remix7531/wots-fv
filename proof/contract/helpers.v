@@ -8,9 +8,9 @@
 
 From VST Require Import floyd.proofauto.
 From wots Require Import contract.public.
+Import NoOracle.  (* Σ := VSTΣ unit, for the [funspecs] list type below *)
 
 Open Scope Z_scope.
-Open Scope logic.
 
 (* ================================================================= *)
 (** ** In-tree libc alternatives ([src/util.c]).
