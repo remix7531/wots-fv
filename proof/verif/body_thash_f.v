@@ -113,23 +113,14 @@ Proof.
   unfold default_val.
   unfold vb64.
   change (Tarray tuchar 64 noattr) with (tarray tuchar 64).
-  replace (data_at Tsh (tarray tuchar 32) (Zrepeat Vundef 32)
-             (field_address0 (tarray tuchar 64) (SUB 32) vb32))
-    with  (data_at Tsh (tarray tuchar (64 - 32)) (Zrepeat Vundef (64 - 32))
-             (field_address0 (tarray tuchar 64) (SUB 32) vb32))
-    by (f_equal; f_equal; lia).
-  (* Iris SEP is right-associated: gather_SEP already groups the two chunks;
-     the VST 2.x sepcon_assoc step would re-break it, so drop it. *)
-  assert (HlVundef : Zlength (Zrepeat (@Vundef) (64 - 32)) = 64 - 32)
-    by list_solve.
   rewrite <- (split2_data_at_Tarray_app 32 64 Tsh tuchar KEY
-                (Zrepeat Vundef (64 - 32)) vb32 HlKEY HlVundef).
-  assert (HlKeyRest : Zlength (KEY ++ Zrepeat Vundef 32) = 96 - 32)
+                (Zrepeat Vundef 32) vb32)
     by list_solve.
   unfold vb32.
   change (Tarray tuchar 96 noattr) with (tarray tuchar 96).
   rewrite <- (split2_data_at_Tarray_app 32 96 Tsh tuchar Z0
-                (KEY ++ Zrepeat Vundef 32) v_buf HlZ0 HlKeyRest).
+                (KEY ++ Zrepeat Vundef 32) v_buf)
+    by list_solve.
 
   (* ===== xor-loop: buf[64+i] = in[i] XOR mask[i] ===== *)
 
@@ -185,12 +176,10 @@ Proof.
       rewrite (Znth_combine i in_buf _ (eq_trans H (eq_sym HlPRF))).
       apply xor_byte_identity. }
 
-    (* Plug [Hxor_val] in and reduce to the per-step [xor_store_step]. *)
+    (* Native array entailment automation advances the initialized prefix. *)
     rewrite Hxor_val.
     entailer!.
-    apply derives_refl'.
-    f_equal.
-    apply xor_store_step; auto. 
+    list_solve.
 
   (* ===== Post-loop gather ===== *)
 

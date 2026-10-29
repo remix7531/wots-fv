@@ -51,8 +51,6 @@ Proof.
     fastforward.
 
     entailer!.
-    apply derives_refl'.
-    f_equal.
     replace (Znth i (adrs_to_vals a)) with (Vint (Int.repr v)) by auto.
     simpl force_val.
 
@@ -65,17 +63,7 @@ Proof.
 
     assert (Hpfx : Zlength (block_to_vals (addr_bytes_prefix a (Z.to_nat i))) = 4 * i)
       by (rewrite block_to_vals_length, addr_bytes_prefix_length by lia; lia).
-    set (L := block_to_vals (addr_bytes_prefix a (Z.to_nat i))) in *.
-    assert (Hrest : Zrepeat (@Vundef) (32 - 4 * i) =
-        [Vundef; Vundef; Vundef; Vundef] ++ Zrepeat (@Vundef) (32 - 4 * (i + 1))).
-    { replace (32 - 4 * i) with (4 + (32 - 4 * (i + 1))) by lia.
-      rewrite <- Zrepeat_app by lia.
-      reflexivity. }
-
-    rewrite Hrest, app_assoc.
-    rewrite <- !app_assoc.
-    apply (upd_Znth4_of_prefix L Vundef Vundef Vundef Vundef _ _ _ _
-             (Zrepeat Vundef (32 - 4 * (i + 1))) (4 * i) Hpfx).
+    list_solve.
 
   (* ===== Loop exit ===== *)
 

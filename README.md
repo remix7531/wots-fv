@@ -5,7 +5,8 @@
 **This project is looking for funding to build a formally verified SLH-DSA implementation**
 
 Machine-checked functional-correctness proof of a C implementation of
-RFC 8391 WOTS+ (`WOTSP-SHA2_256`), using VST on Rocq 9.0 + CompCert.
+RFC 8391 WOTS+ (`WOTSP-SHA2_256`), using VST 3.2beta on Rocq 9.1
+and CompCert 3.17.
 
 ## What is proved
 

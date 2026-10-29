@@ -81,14 +81,12 @@ Proof.
         intros k _.
         apply sign_block_Zlength. }
 
-    erewrite (split2_data_at_Tarray_app (32*i) 2144 sh_sig tuchar
-               FILLED (Zrepeat Vundef (2144 - 32*i)))
-      by (try exact HlFILLED; split_sc).
     replace (2144 - 32*i) with (32 + (2144 - 32*(i+1))) by lia.
     rewrite <- Zrepeat_app by lia.
-    erewrite (split2_data_at_Tarray_app 32 _ sh_sig tuchar
-               (Zrepeat Vundef 32) (Zrepeat Vundef (2144 - 32*(i+1))))
-      by split_sc.
+    erewrite (split3_data_at_Tarray_tuchar_app (32 * i) 32 2144 sh_sig
+                FILLED (Zrepeat Vundef 32)
+                (Zrepeat Vundef (2144 - 32 * (i + 1))) sig_ptr)
+      by (try exact HlFILLED; Zlength_solve).
 
     set (pSUFF := field_address0 (tarray tuchar 2144) (SUB (32*i)) sig_ptr).
     Intros.
@@ -160,10 +158,6 @@ Proof.
                (Z.to_nat i)) by lia.
 
     replace (Z.to_nat (i+1)) with (S (Z.to_nat i)) by lia.
-    replace (32 + (2144 - 32 * (i + 1)) - 32)
-      with (2144 - 32 * i - 32) by lia.
-    replace (32 + (2144 - 32 * (i + 1)))
-      with (2144 - 32 * i) by lia.
     change n_bytes with 32 in *.
 
     assert (Hlsgn : Zlength (block_to_vals
@@ -171,35 +165,24 @@ Proof.
                                   (Z.to_nat i))) = 32).
     { rewrite block_to_vals_length, sign_block_Zlength. reflexivity. }
 
-    gather_SEP
-      (data_at sh_sig (tarray tuchar 32)
-         (block_to_vals (sign_block sk_seed pub_seed a msg (Z.to_nat i)))
-         pSUFF)
-      (data_at sh_sig (tarray tuchar (2144 - 32 * i - 32)) _ _).
-    erewrite <- (split2_data_at_Tarray_app 32 (2144 - 32 * i) sh_sig tuchar
-                   (block_to_vals
-                      (sign_block sk_seed pub_seed a msg (Z.to_nat i)))
-                   (Zrepeat Vundef (2144 - 32 * (i + 1)))
-                   pSUFF Hlsgn)
-      by split_sc.
     unfold pSUFF.
     gather_SEP
       (data_at sh_sig (tarray tuchar (32 * i)) FILLED sig_ptr)
-      (data_at sh_sig (tarray tuchar (2144 - 32 * i)) _ _).
+      (data_at sh_sig (tarray tuchar 32)
+         (block_to_vals (sign_block sk_seed pub_seed a msg (Z.to_nat i)))
+         (field_address0 (tarray tuchar 2144) (SUB (32 * i)) sig_ptr))
+      (data_at sh_sig (tarray tuchar (2144 - 32 * i - 32))
+         (Zrepeat Vundef (2144 - 32 * (i + 1)))
+         (field_address0 (tarray tuchar 2144) (SUB (32 * i + 32)) sig_ptr)).
     entailer!.
-    erewrite <- (split2_data_at_Tarray_app (32 * i) 2144 sh_sig tuchar
+    erewrite <- (split3_data_at_Tarray_tuchar_app (32 * i) 32 2144 sh_sig
                    FILLED
                    (block_to_vals
-                      (sign_block sk_seed pub_seed a msg (Z.to_nat i))
-                    ++ Zrepeat Vundef (2144 - 32 * (i + 1)))
-                   sig_ptr HlFILLED)
-      by (rewrite Zlength_app, block_to_vals_length,
-              sign_block_Zlength, Zlength_Zrepeat;
-          rep_lia).
-    apply derives_refl'. 
-    f_equal.
+                      (sign_block sk_seed pub_seed a msg (Z.to_nat i)))
+                   (Zrepeat Vundef (2144 - 32 * (i + 1))) sig_ptr)
+      by (try assumption; Zlength_solve).
     rewrite blocks_to_vals_seq_S, <- app_assoc.
-    reflexivity.
+    cancel.
 
   - (* ===== loop exit ===== *)
 

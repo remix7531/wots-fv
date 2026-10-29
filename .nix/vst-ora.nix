@@ -1,27 +1,26 @@
-# coq-vst-ora ("Ordered Resource Algebras for Iris"), logical namespace
-# `iris_ora`. This is the ORA library VST v3.1beta2 ("VST on Iris") was split
-# onto: veric/external_state.v and friends `Require iris_ora.algebra.*` /
-# `iris_ora.logic.*`. It is NOT vendored in the VST repo and NOT in nixpkgs, so
-# we build it from upstream (mansky1/ora). Version 1.1 pins coq-iris = 4.3.0,
-# matching the Iris the beta itself targets.
-#
-# Plain Iris-style project (Makefile -> coq_makefile -f _CoqProject), so
-# mkCoqDerivation's default build/install phases install `iris_ora` to
-# user-contrib unchanged.
+# ORA supplies the iris_ora namespace consumed by VST.
 { lib
-, mkCoqDerivation
+, mkRocqDerivation
 , iris
-, version
-, src
+, version ? null
 }:
 
-mkCoqDerivation {
+mkRocqDerivation {
   pname = "vst-ora";
-  namePrefix = [ ];
-  inherit version src;
+  owner = "mansky1";
+  repo = "ora";
+  inherit version;
+  defaultVersion =
+    let
+      case = case: out: { inherit case out; };
+    in
+    with lib.versions;
+    lib.switch iris.version [
+      (case (isEq "4.5.0") "1.2.1")
+    ] null;
+  release."1.2.1".hash = "sha256-o6+BnqYe3JA0VVWRNw9yhYKsoPm1Xjjx71pNdLQ1U6M=";
+  releaseRev = v: "v${v}";
 
-  # iris (= 4.3.0) propagates std++; both land on COQPATH for the build and for
-  # downstream consumers (VST, the proof).
   propagatedBuildInputs = [ iris ];
 
   meta = {

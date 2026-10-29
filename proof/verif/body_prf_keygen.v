@@ -77,26 +77,14 @@ Proof.
                       (Vint (Int.zero_ext 8 (Int.repr 4)))).
   set (X2 := map Vint (block_ints key)).
   set (X3 := map Vint (block_ints in_buf)).
-  assert (HlX1 : Zlength X1 = 32) by (subst X1; list_solve).
-  assert (HlX2 : Zlength X2 = 32) by (subst X2; list_solve).
-  assert (HlX3 : Zlength X3 = 96 - 32) by (subst X3; list_solve).
-  assert (HlX23 : Zlength (X2 ++ X3) = 128 - 32) by list_solve.
-
   unfold p64.
   change (Tarray tuchar 96 noattr) with (tarray tuchar 96).
-  replace (data_at Tsh (tarray tuchar 64) X3
-             (field_address0 (tarray tuchar 96) (SUB 32) p32))
-    with  (data_at Tsh (tarray tuchar (96 - 32)) X3
-             (field_address0 (tarray tuchar 96) (SUB 32) p32))
-    by (f_equal; f_equal; lia).
-  (* Iris SEP is right-associated: gather_SEP already groups (X2 ∗ X3); the
-     VST 2.x sepcon_assoc step would re-break it, so drop it. *)
-  rewrite <- (split2_data_at_Tarray_app 32 96 Tsh tuchar X2 X3 p32
-                HlX2 HlX3).
+  rewrite <- (split2_data_at_Tarray_app 32 96 Tsh tuchar X2 X3 p32)
+    by (subst X2 X3; list_solve).
   change (Tarray tuchar 128 noattr) with (tarray tuchar 128) in p32.
   unfold p32.
-  rewrite <- (split2_data_at_Tarray_app 32 128 Tsh tuchar X1 (X2 ++ X3) v_buf
-                HlX1 HlX23).
+  rewrite <- (split2_data_at_Tarray_app 32 128 Tsh tuchar X1 (X2 ++ X3) v_buf)
+    by (subst X1 X2 X3; list_solve).
 
   (* Unify X1 ++ X2 ++ X3 with block_to_vals of the abstract SHA256 input. *)
   assert (Heq : X1 ++ X2 ++ X3 =

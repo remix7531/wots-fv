@@ -54,32 +54,22 @@ Proof.
 
   (* Loop body: read s[i] into _t'1, then write d[i] *)
 
-  - assert (HZnth : Znth i (map Vint contents) = Vint (Znth i contents)).
-    { rewrite Znth_map by lia. reflexivity. }
-
-    assert_PROP (Forall (value_fits tuchar) (map Vint contents))
+  - assert_PROP (Forall (value_fits tuchar) (map Vint contents))
       as Hfit by entailer!.
-    assert (Hi_in : 0 <= i < Zlength (map Vint contents))
-      by (rewrite Zlength_map; lia).
-    pose proof (proj1 (Forall_Znth _ _) Hfit _ Hi_in) as Hfit_i.
-    (* Hfit_i has [Znth i (map Vint contents)] in goal-printer form, but
-       Rocq normalised it; restore via [HZnth]. *)
-    assert (Hfit_v : value_fits tuchar (Vint (Znth i contents)))
-      by (rewrite <- HZnth; exact Hfit_i).
-    clear Hfit_i. rename Hfit_v into Hfit_i.
-
-    rewrite value_fits_eq in Hfit_i. simpl in Hfit_i.
-    assert (Hrng : 0 <= Int.unsigned (Znth i contents) <= Byte.max_unsigned).
-    { specialize (Hfit_i ltac:(discriminate)).
-      simpl in Hfit_i. rep_lia. }
-
     forward.
+    { entailer!.
+      pose proof (proj1 (Forall_Znth _ _) Hfit i) as Hfit_i.
+      rewrite Znth_map in Hfit_i by lia.
+      specialize (Hfit_i ltac:(rewrite Zlength_map; lia)).
+      rewrite value_fits_by_value in Hfit_i by reflexivity.
+      apply (Hfit_i ltac:(discriminate)). }
     forward.
 
     (* The loop-invariant re-establishment is pure list algebra
        (upd_Znth / sublist / Zrepeat / Znth_map): list_solve proves the
        data_at array entailment directly via data_subsume_array_ext. *)
-    entailer!. list_solve.
+    entailer!.
+    list_solve.
 
   (* ===== Loop exit: collapse to [map Vint contents] ===== *)
 

@@ -37,14 +37,8 @@ Qed.
 Lemma app_eq_same_length : forall {A} (a b c d : list A),
   length a = length b -> a ++ c = b ++ d -> a = b /\ c = d.
 Proof.
-  induction a as [|x a IH]; intros [|y b] c d Hl Heq;
-    simpl in *; try discriminate.
-  - split; [reflexivity | assumption].
-  - injection Heq as Hhd Htl.
-    injection Hl as Hl.
-    specialize (IH _ _ _ Hl Htl) as [Ha Hc].
-    subst.
-    split; reflexivity.
+  intros A a b c d Hlength Hequal.
+  apply app_inj_1; assumption.
 Qed.
 
 (** Splitting a flat byte-list into equal-length blocks is unique. *)
@@ -61,19 +55,10 @@ Proof.
     inversion HF1 as [|? ? Hzb1 Hzbs1]; subst.
     inversion HF2 as [|? ? Hzb2 Hzbs2]; subst.
 
-    (* Convert Zlength constraints to nat-length for app_eq_same_length. *)
-    assert (Hlb1 : length b1 = n).
-    { rewrite Zlength_correct in Hzb1.
-      change n_bytes with (Z.of_nat n) in Hzb1.
-      apply Nat2Z.inj in Hzb1.
-      exact Hzb1. }
-    assert (Hlb2 : length b2 = n).
-    { rewrite Zlength_correct in Hzb2.
-      change n_bytes with (Z.of_nat n) in Hzb2.
-      apply Nat2Z.inj in Hzb2.
-      exact Hzb2. }
-    assert (Hlen_eq : length b1 = length b2)
-      by (rewrite Hlb1, Hlb2; reflexivity).
+    assert (Hlen_eq : length b1 = length b2).
+    { apply Nat2Z.inj.
+      rewrite <- !Zlength_correct.
+      lia. }
 
     (* Split the concat equality at the head block boundary. *)
     destruct (app_eq_same_length b1 b2 (concat bs1) (concat bs2)
@@ -89,11 +74,8 @@ Lemma Forall_byte_ok_concat : forall (bs : list block),
   Forall (Forall byte_ok) bs -> Forall byte_ok (concat bs).
 Proof.
   intros bs HF.
-  apply Forall_forall. intros x Hx.
-  rewrite in_concat in Hx.
-  destruct Hx as [l [Hxl Hlbs]].
-  rewrite Forall_forall in HF. specialize (HF l Hlbs).
-  rewrite Forall_forall in HF. apply HF, Hxl.
+  apply Forall_concat.
+  exact HF.
 Qed.
 
 Lemma pk_int_neq_implies_verify_false :

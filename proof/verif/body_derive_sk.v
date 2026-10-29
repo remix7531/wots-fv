@@ -57,12 +57,9 @@ Proof.
   set (X2 := block_to_vals
               (addr_bytes (setKeyAndMask
                 (setHashAddress (setChainAddress a chain_i) 0) 0))).
-  assert (HlX1 : Zlength X1 = 32) by (subst X1; list_solve).
-  assert (HlX2 : Zlength X2 = 64 - 32)
-    by (subst X2; rewrite block_to_vals_length, addr_bytes_length; lia).
   unfold p32.
-  rewrite <- (split2_data_at_Tarray_app 32 64 Tsh tuchar X1 X2 v_in
-                HlX1 HlX2).
+  rewrite <- (split2_data_at_Tarray_app 32 64 Tsh tuchar X1 X2 v_in)
+    by (subst X1 X2; rewrite ?block_to_vals_length, ?addr_bytes_length; list_solve).
   assert (Heq : X1 ++ X2 =
                 block_to_vals (pub_seed ++
                   addr_bytes (setKeyAndMask

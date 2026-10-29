@@ -8,16 +8,13 @@ From wots Require Import model.wots.
 
 Open Scope Z_scope.
 
-(* Oracle-polymorphic VST3 style (see contract.public).  This proof also showcases
-   the Iris Proof Mode at the postcondition entailment: iSplit / iPureIntro replace
-   the classic andp_right / prop_right, while data_at weakening + framing stay floyd
-   (sep_apply / cancel) since data_at is opaque to IPM. *)
 Section body_wotsfv_verify_proof.
 Context `{!VSTGS OK_ty Σ}.
 
 Lemma body_wotsfv_verify : semax_body Vprog Gprog f_wotsfv_verify wotsfv_verify_spec.
 Proof.
   start_function.
+  rename H into Hpk_length.
 
   (* ===== Setup: resolve pk_bytes constant ===== *)
 
@@ -50,7 +47,7 @@ Proof.
     unfold block_ints.
     rewrite Zlength_map.
     rewrite Zlength_concat_fixed by assumption.
-    rewrite H.
+    rewrite Hpk_length.
     reflexivity. }
 
   (* ===== memcmp(pk_candidate, pk, WOTS_PK_BYTES) ===== *)
@@ -89,9 +86,12 @@ Proof.
   - (* r <> Int.zero branch: contents differ *)
     forward.
     entailer!.
+    match goal with
+    | H : r <> Int.repr 0 |- _ => rename H into Hmemcmp_nonzero
+    end.
     assert (Hne : pkc_int <> pk_int).
     { intro Heq.
-      apply H6.
+      apply Hmemcmp_nonzero.
       rewrite (proj2 Hrmemcmp Heq).
       reflexivity. }
     subst pkc_int pk_int.
@@ -104,20 +104,16 @@ Proof.
     Exists a_post.
     subst pk_int pkc_int.
     rewrite <- (blocks_to_vals_eq_Vint pk).
-    (* data_at weakening stays floyd (data_at is opaque to IPM)... *)
     sep_apply (data_at_data_at_ Tsh (tarray tuchar 2144)
                 (map Vint (block_ints
                   (concat (pkFromSig msg sig pub_seed a))))
                 v_pk_cand).
-    (* ...then close the [⌜retval⌝ ∧ SEP] postcondition with the Iris Proof Mode:
-       introduce the resources (iIntros), split the conjunction (iSplit), and
-       discharge the pure return-value side with iPureIntro -- replacing the
-       classic andp_right / prop_right.  The data_at SEP is then handed back to
-       floyd's cancel via iStopProof (data_at has no iFrame instance). *)
     iIntros "Hres".
     iSplit.
-    { iPureIntro; reflexivity. }
-    iStopProof; cancel.
+    { iPureIntro.
+      reflexivity. }
+    iStopProof.
+    cancel.
 Qed.
 
 End body_wotsfv_verify_proof.

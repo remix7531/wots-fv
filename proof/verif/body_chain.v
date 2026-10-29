@@ -11,6 +11,8 @@ Context `{!VSTGS OK_ty Σ}.
 Lemma body_chain : semax_body Vprog Gprog f_chain chain_spec.
 Proof.
   start_function.
+  rename H1 into Hchain_bound.
+  rename H2 into Hinput_length.
 
   (* ===== forward_for_simple_bound invariant ===== *)
 
@@ -36,7 +38,7 @@ Proof.
 
   (* ===== Loop entry: j = 0 ===== *)
 
-  - unfold w_pred in H1.
+  - unfold w_pred in Hchain_bound.
     rep_lia.
 
   (* ===== Loop entry invariant ===== *)
@@ -46,7 +48,7 @@ Proof.
   (* ===== Loop body: thash_f call + addr update ===== *)
 
   - pose proof (chain_Zlength in_buf (Z.to_nat start) (Z.to_nat i)
-                  pub_seed a H2) as Hlen_chain.
+                  pub_seed a Hinput_length) as Hlen_chain.
     forward.
     rewrite add_repr, upd_adrs_6.
 

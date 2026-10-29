@@ -15,6 +15,8 @@ Lemma body_expand_digits :
   semax_body Vprog Gprog f_expand_digits expand_digits_spec.
 Proof.
   start_function.
+  rename H into Hmsg_length.
+  rename H0 into Hmsg_bytes.
 
   (* ===== Setup ===== *)
 
@@ -35,7 +37,8 @@ Proof.
   - forward.
     { close_tc_byte. }
     rewrite Znth_block_to_vals by lia.
-    do 2 forward.
+    forward.
+    forward.
     { close_tc_byte. }
     rewrite Znth_block_to_vals by lia.
     forward.
@@ -46,9 +49,8 @@ Proof.
     rewrite (nibble_hi _ Hrng).
     rewrite (nibble_lo _ Hrng).
     entailer!.
-    apply derives_refl'. 
-    f_equal.
-    apply nibble_step_shape; auto.
+    rewrite (nibble_step_shape msg i) by auto.
+    cancel.
 
   (* ===== Post-phase-1 setup ===== *)
 
@@ -58,7 +60,8 @@ Proof.
     forward.
 
     assert (HFall : Forall (fun n => (n <= 15)%nat) (flat_map nibbleF msg)).
-    { apply Forall_flat_map_nibbleF_le_15. exact H0. }
+    { apply Forall_flat_map_nibbleF_le_15.
+      exact Hmsg_bytes. }
 
     (* ===== Phase 2: checksum accumulator loop (j < 64) ===== *)
 
@@ -77,7 +80,7 @@ Proof.
     + assert (Hlen64 : Zlength (flat_map nibbleF msg) = 64).
       { apply Zlength_flat_map_nibbleF_32; assumption. }
       assert (Hnib_le : (Znth i (flat_map nibbleF msg) <= 15)%nat).
-      { apply nibble_le_15; [exact H | exact H0 | lia]. }
+      { apply nibble_le_15; [exact Hmsg_length | exact Hmsg_bytes | lia]. }
 
       forward.
       { entailer!.
@@ -131,10 +134,14 @@ Proof.
         apply Nat2Z.inj_le. lia. }
       assert (Hv16 : 0 <= Z.of_nat csum_nat < 2^16) by lia.
 
-      do 3 forward.
+      forward.
+      forward.
+      forward.
       entailer!.
-      apply derives_refl'. 
-      f_equal.
+      apply bi.equiv_entails.
+      symmetry.
+      change (Z.of_nat len) with 67.
+      f_equiv.
 
       rewrite (nibble_shru_and_15 _ 8 Hv16 ltac:(lia)).
       rewrite (nibble_shru_and_15 _ 4 Hv16 ltac:(lia)).

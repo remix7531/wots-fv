@@ -9,27 +9,16 @@
 From VST Require Export floyd.proofauto.
 From wots Require Export model.wots clight.wots.
 
-(* proofauto pulls in ssreflect (via Iris/stdpp), whose `rewrite` does not accept
-   the vanilla `rewrite lem by tac` clause this development uses throughout.  VST's
-   classic proof style wants the standard rewrite -- floyd.compat used to do this;
-   keep it ourselves now that the shim is gone. *)
+(* VST imports ssreflect's rewrite syntax. Keep standard rewrite syntax for
+   the project's arithmetic side conditions. *)
 #[export] Unset SsrRewrite.
 
-(* VST on Iris (v3.1beta2): mpred := iProp Σ, so funspec/assert/semax_body are
-   Σ-parameterized.  Instead of fixing Σ := VSTΣ unit via floyd.compat's NoOracle
-   shim, this development stays *oracle-polymorphic* -- the idiomatic, future-proof
-   VST3 style: CompSpecs and Vprog are Σ-free and live at module level, while every
-   funspec / Gprog / semax_body is wrapped in a section parameterized by
-   [Context !VSTGS OK_ty Σ] (here, and in contract.gprog and the verif files). *)
+(* Keep specs and body proofs polymorphic in the external-state type and
+   resource signature so clients can supply their own VSTGS instances.
+   CompSpecs and Vprog do not depend on either parameter. *)
 
 #[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
-
-(* Native convenience lemma (floyd.compat used to provide this).  Σ-free, so it
-   lives at module level; the body proofs' [apply derives_refl'] data_at-
-   extensionality closers keep working without the shim. *)
-Lemma derives_refl' {B : bi} {P Q : B} : P = Q -> P ⊢ Q.
-Proof. intros; subst; auto. Qed.
 
 Open Scope Z_scope.
 

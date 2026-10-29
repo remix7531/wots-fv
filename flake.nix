@@ -1,10 +1,7 @@
 {
-  description = "WOTS+ formal verification (RFC 8391, XMSS-SHA2_10_256) - Rocq + VST on Iris (v3.1beta2)";
+  description = "WOTS+ formal verification (RFC 8391, XMSS-SHA2_10_256) - Rocq + VST on Iris (v3.2beta)";
 
   inputs = {
-    # nixos-26.05 ships coqPackages_8_20 (Coq 8.20.1) plus the Iris 4.3.0 and
-    # CompCert 3.15 the beta wants in its release tables, so the binary cache has
-    # prebuilt Coq/CompCert artifacts and the closure stays internally consistent.
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
     flake-utils.url = "github:numtide/flake-utils";
     flake-compat = {
@@ -23,54 +20,39 @@
         };
         lib = pkgs.lib;
 
-        # VST v3.1beta2 ("VST on Iris") targets Coq 8.19-8.20 + Iris 4.3.0 +
-        # CompCert 3.15. Pin Iris and CompCert to those exact versions (both in
-        # the nixpkgs release tables) on top of Coq 8.20.1, keeping a single
-        # consistent Coq so the .vo are mutually loadable.
-        coqPkgs = pkgs.coqPackages_8_20;
-        coqV = coqPkgs.coq.coq-version; # "8.20"
+        # VST 3.2beta supports Rocq 9.0 to 9.1, Iris 4.5.0 and CompCert 3.17.
+        coqPkgs = pkgs.coqPackages_9_1;
+        rocqPkgs = coqPkgs.coq.rocqPackages;
+        coqV = coqPkgs.coq.coq-version;
 
-        stdpp_1_11    = coqPkgs.stdpp.override    { version = "1.11.0"; };
-        iris_4_3      = coqPkgs.iris.override     { version = "4.3.0"; stdpp = stdpp_1_11; };
-        compcert_3_15 = coqPkgs.compcert.override { version = "3.15"; };
+        stdpp = rocqPkgs.stdpp.override { version = "1.13.0"; };
+        iris = rocqPkgs.iris.override { version = "4.5.0"; inherit stdpp; };
+        compcert = coqPkgs.compcert.override { version = "3.17"; };
 
-        # coq-vst-ora (logical namespace `iris_ora`): the ORA library VST on Iris
-        # was split onto. Not in nixpkgs; built from mansky1/ora. Use v1.0 -- the
-        # companion release of the VST 3.1beta line (tagged one day before
-        # v3.1beta, pins Iris 4.3.0). v1.1 (2026) changed `Uora` to 3 args and
-        # breaks v3.1beta2's shared/dshare.v.
-        vst-ora = coqPkgs.callPackage ./.nix/vst-ora.nix {
-          iris = iris_4_3;
-          version = "1.0";
-          src = pkgs.fetchFromGitHub {
-            owner = "mansky1";
-            repo = "ora";
-            rev = "664c07ef73999dd53038a799fecabfbc8b28cb4e"; # v1.0
-            hash = "sha256-Yd/mtnyxdV8cieT6HGQ4ZnBuDeu8NqGecZuHdPbadXI=";
-          };
+        vst-ora = rocqPkgs.callPackage ./.nix/vst-ora.nix {
+          inherit iris;
         };
 
         vst-on-iris = coqPkgs.callPackage ./.nix/vst-on-iris.nix {
-          compcert = compcert_3_15;
-          iris = iris_4_3;
+          inherit compcert iris;
           ora = vst-ora;
-          version = "3.1beta2";
+          version = "3.2beta";
           src = pkgs.fetchFromGitHub {
             owner = "PrincetonUniversity";
             repo = "VST";
-            rev = "835680c0ff66d89d9ade65b4bd4465b7c09bf60a"; # v3.1beta2
-            hash = "sha256-YWU9o4t2GlDGa7t2W4H2kzuuAyHi6t/rQYQh7fZ9HmI=";
+            rev = "0850e1372d3cf68e09ac8b01d76613825212224e"; # v3.2beta
+            hash = "sha256-LsbQz7jG93KMkM4v5UlQCRqKRBJP056pUUNzOzcp8Bg=";
           };
         };
 
-        # Full COQPATH for the proof: VST + its CompCert / Iris / std++ / Flocq
-        # closure. (CompCert's .vo live in its `lib` output.)
-        coqPath = lib.makeSearchPath "lib/coq/${coqV}/user-contrib" [
+        # CompCert's proof libraries live in its separate lib output.
+        rocqPath = lib.makeSearchPath "lib/coq/${coqV}/user-contrib" [
           vst-on-iris
-          compcert_3_15.lib
-          iris_4_3
-          stdpp_1_11
+          compcert.lib
+          iris
+          stdpp
           vst-ora
+          rocqPkgs.stdlib
           coqPkgs.flocq
           coqPkgs.MenhirLib
         ];
@@ -84,8 +66,8 @@
             coq-lsp
             vsrocq-language-server
           ]) ++ [
-            compcert_3_15 # CompCert 3.15 .vo + clightgen
-            iris_4_3
+            compcert
+            iris
             vst-on-iris
           ] ++ (with pkgs; [
             clang
@@ -107,7 +89,8 @@
             xmss-reference
           ];
           shellHook = ''
-            export COQPATH="${coqPath}"
+            export ROCQPATH="${rocqPath}"
+            unset COQPATH
             export XMSSREF_PREFIX=${xmss-reference}
           '';
         };

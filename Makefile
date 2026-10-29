@@ -121,14 +121,8 @@ export OCAMLFIND_IGNORE_DUPS_IN
 # _RocqProject:3 never reached hand-rolled `rocq compile` calls).
 ROCQ_ARGS = $(shell grep -E '^-' _RocqProject | tr '\n' ' ')
 
-# Proof-toolchain front-end.  VST on Iris (v3.1beta2) builds on Coq 8.20, whose
-# project-makefile generator is `coq_makefile` (compiler: `coqc`).  The Rocq 9.x
-# line ships the unified CLI instead (`rocq makefile` / `rocq compile`).  The
-# generator bakes the matching compiler into Makefile.coq, so flipping this one
-# knob switches the whole proof build between toolchains:
-#   Coq 8.20 (default):  COQ_MAKEFILE = coq_makefile
-#   Rocq 9.x:            COQ_MAKEFILE = rocq makefile
-COQ_MAKEFILE ?= coq_makefile
+# The project makefile must use the compiler from the proof shell.
+COQ_MAKEFILE ?= rocq makefile
 
 # Cyan banner; blue success line.  Disable colors when NO_COLOR is set
 # (https://no-color.org/) so CI logs stay readable.

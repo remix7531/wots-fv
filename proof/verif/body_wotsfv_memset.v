@@ -45,7 +45,7 @@ Proof.
 
   - rewrite data_at__tarray.
     entailer!.
-    apply derives_refl'. f_equal.
+    list_solve.
 
   (* Loop body: write byte b at index i *)
 

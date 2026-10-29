@@ -146,6 +146,55 @@ Proof.
   apply Zlength_map.
 Qed.
 
+#[export] Hint Rewrite
+  block_to_vals_length Zlength_block_ints adrs_words_length
+  Zlength_digits_to_vals : Zlength.
+
+#[export] Hint Unfold
+  block_to_vals blocks_to_vals block_ints digits_to_vals : list_solve_unfold.
+
+Section byte_array_segments.
+Context `{!VSTGS external_state_type resource_signature}.
+Context {composite_specs : compspecs}.
+
+(** Full-parent offsets let loop proofs restore slices without rebasing
+    pointers through nested suffix arrays. *)
+Lemma split3_data_at_Tarray_tuchar_app
+    prefix_length middle_length total_length sh
+    (prefix middle suffix : list val) pointer :
+  Zlength prefix = prefix_length ->
+  Zlength middle = middle_length ->
+  Zlength suffix = total_length - prefix_length - middle_length ->
+  data_at sh (tarray tuchar total_length) (prefix ++ middle ++ suffix) pointer =
+  bi_sep (data_at sh (tarray tuchar prefix_length) prefix pointer)
+    (bi_sep (data_at sh (tarray tuchar middle_length) middle
+               (field_address0 (tarray tuchar total_length) (SUB prefix_length) pointer))
+            (data_at sh (tarray tuchar (total_length - prefix_length - middle_length)) suffix
+               (field_address0 (tarray tuchar total_length)
+                  (SUB (prefix_length + middle_length)) pointer))).
+Proof.
+  intros Hprefix Hmiddle Hsuffix.
+  pose proof (Zlength_nonneg prefix) as Hprefix_nonnegative.
+  pose proof (Zlength_nonneg middle) as Hmiddle_nonnegative.
+  pose proof (Zlength_nonneg suffix) as Hsuffix_nonnegative.
+  pose proof (split3_data_at_Tarray_tuchar sh total_length prefix_length
+                (prefix_length + middle_length) (prefix ++ middle ++ suffix) pointer)
+    as Hsplit.
+  replace (prefix_length + middle_length - prefix_length)
+    with middle_length in Hsplit by lia.
+  replace (total_length - (prefix_length + middle_length))
+    with (total_length - prefix_length - middle_length) in Hsplit by lia.
+  unfold tarray.
+  rewrite Hsplit by Zlength_solve.
+  f_equal.
+  - f_equal; list_solve.
+  - f_equal.
+    + f_equal; list_solve.
+    + f_equal; list_solve.
+Qed.
+
+End byte_array_segments.
+
 (** [blocks_to_vals] distributes over list concatenation. *)
 Lemma blocks_to_vals_app : forall l1 l2,
   blocks_to_vals (l1 ++ l2) = blocks_to_vals l1 ++ blocks_to_vals l2.
@@ -164,35 +213,14 @@ Lemma blocks_to_vals_split : forall sig i (d : block),
     ++ blocks_to_vals (skipn (S i) sig).
 Proof.
   intros sig i d Hi.
-
-  (* Peel off the prefix [firstn i sig]. *)
-  rewrite <- (firstn_skipn i sig) at 1.
-  rewrite blocks_to_vals_app.
-  f_equal.
-
-  (* Peel off the single block at index i. *)
-  rewrite <- (firstn_skipn 1%nat (skipn i sig)) at 1.
-  rewrite blocks_to_vals_app.
-  f_equal.
-  - destruct (skipn i sig) eqn:Hsk.
-    + apply f_equal with (f := @length block) in Hsk.
-      rewrite List.length_skipn in Hsk.
-      simpl in Hsk.
-      lia.
-    + simpl firstn.
-      unfold blocks_to_vals, block_to_vals.
-      simpl concat.
-      rewrite app_nil_r.
-      f_equal.
-      rewrite <- (firstn_skipn i sig) at 1.
-      rewrite app_nth2 by (rewrite firstn_length_le; lia).
-      rewrite firstn_length_le by lia.
-      replace (i - i)%nat with 0%nat by lia.
-      rewrite Hsk.
-      reflexivity.
-  - rewrite skipn_skipn.
-    replace (i + 1)%nat with (S i) by lia.
+  destruct (nth_lookup_or_length sig i d) as [Hlookup|Houtside].
+  - rewrite <- (take_drop_middle sig i (nth i sig d) Hlookup) at 1.
+    unfold blocks_to_vals, block_to_vals.
+    rewrite concat_app.
+    simpl concat.
+    rewrite !map_app.
     reflexivity.
+  - lia.
 Qed.
 
 (** [nth k bs default] is fixed-length whenever [bs] is, since the default
@@ -226,21 +254,13 @@ Lemma length_blocks_to_vals_fixed : forall (bs : list block),
   Forall (fun b => Zlength b = n_bytes) bs ->
   length (blocks_to_vals bs) = (length bs * 32)%nat.
 Proof.
-  intros bs H.
+  intros bs Hfixed.
   unfold blocks_to_vals.
-  rewrite length_map, length_concat.
-
-  induction H as [|x xs Hx IH Hi]; [reflexivity|].
-  cbn [List.map].
-  assert (Hxlen : length x = 32%nat).
-  { rewrite Zlength_correct in Hx.
-    change n_bytes with 32 in Hx.
-    apply Nat2Z.inj.
-    rewrite Hx.
-    reflexivity. }
-
-  simpl.
-  rewrite Hxlen, Hi.
+  rewrite length_map.
+  apply Nat2Z.inj.
+  rewrite Nat2Z.inj_mul.
+  rewrite <- Zlength_correct.
+  rewrite Zlength_concat_fixed by exact Hfixed.
   lia.
 Qed.
 
@@ -275,16 +295,6 @@ Ltac finish_slot_addr p HFC :=
   rewrite field_address0_offset;
   [ simpl; f_equal; lia
   | apply arr_field_compatible0; [ exact HFC | lia ] ].
-
-(** [split_sc] discharges the length side conditions of
-    [split2_data_at_Tarray_app] in the common cases: suffix is a
-    [Zrepeat Vundef ...], an append of two fixed-length chunks, or
-    resolvable by [list_solve]. *)
-Ltac split_sc :=
-  first
-    [ list_solve
-    | rewrite Zlength_Zrepeat; lia
-    | rewrite Zlength_app, ?Zlength_Zrepeat; lia ].
 
 (** [close_tc_byte] closes the [tc_val tuchar ...] obligation left
     behind by [forward.] on a tuchar load over [block_to_vals]. *)

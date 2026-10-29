@@ -19,14 +19,11 @@ Open Scope Z_scope.
 Lemma int_xor_eq_zero_iff (a b : int) :
   Int.xor a b = Int.zero <-> a = b.
 Proof.
-  split; intro H.
-  - apply Int.same_bits_eq; intros i Hi.
-    pose proof (Int.bits_xor a b i Hi) as Hbit.
-    assert (Hz : Int.testbit (Int.xor a b) i = false).
-    { rewrite H. apply Int.bits_zero. }
-    rewrite Hbit in Hz.
-    destruct (Int.testbit a i), (Int.testbit b i); simpl in Hz; congruence.
-  - subst. apply Int.xor_idem.
+  split.
+  - apply Int.xor_zero_equal.
+  - intros Hab.
+    subst b.
+    apply Int.xor_idem.
 Qed.
 
 (** Bitwise OR is zero iff each operand is zero. *)
@@ -34,18 +31,15 @@ Lemma int_or_eq_zero_iff (a b : int) :
   Int.or a b = Int.zero <-> a = Int.zero /\ b = Int.zero.
 Proof.
   split.
-  - intro H. split; apply Int.same_bits_eq; intros i Hi.
-    + pose proof (Int.bits_or a b i Hi) as Hbit.
-      assert (Hz : Int.testbit (Int.or a b) i = false).
-      { rewrite H. apply Int.bits_zero. }
-      rewrite Hbit in Hz. rewrite Int.bits_zero.
-      destruct (Int.testbit a i); simpl in Hz; congruence.
-    + pose proof (Int.bits_or a b i Hi) as Hbit.
-      assert (Hz : Int.testbit (Int.or a b) i = false).
-      { rewrite H. apply Int.bits_zero. }
-      rewrite Hbit in Hz. rewrite Int.bits_zero.
-      destruct (Int.testbit a i), (Int.testbit b i); simpl in Hz; congruence.
-  - intros [Ha Hb]. subst. apply Int.or_zero.
+  - intros Hor.
+    split.
+    + rewrite <- (Int.and_or_absorb a b), Hor.
+      apply Int.and_zero.
+    + rewrite <- (Int.and_or_absorb b a), Int.or_commut, Hor.
+      apply Int.and_zero.
+  - intros [Ha Hb].
+    subst.
+    apply Int.or_zero.
 Qed.
 
 (** If [a, b] both fit in 8 bits then so does [Int.xor a b]. *)
@@ -55,27 +49,14 @@ Lemma int_xor_byte_bound (a b : int) :
   0 <= Int.unsigned (Int.xor a b) < 256.
 Proof.
   intros Ha Hb.
-  unfold Int.xor.
-  rewrite Int.unsigned_repr_eq.
-  assert (Hnn : 0 <= Z.lxor (Int.unsigned a) (Int.unsigned b))
-    by (apply Z.lxor_nonneg; lia).
-  assert (Ha8 : Z.log2 (Int.unsigned a) < 8).
-  { destruct (Z.eq_dec (Int.unsigned a) 0) as [E|E].
-    - rewrite E. simpl. lia.
-    - apply Z.log2_lt_pow2; [lia|change (2^8) with 256; lia]. }
-  assert (Hb8 : Z.log2 (Int.unsigned b) < 8).
-  { destruct (Z.eq_dec (Int.unsigned b) 0) as [E|E].
-    - rewrite E. simpl. lia.
-    - apply Z.log2_lt_pow2; [lia|change (2^8) with 256; lia]. }
-  assert (Hub : Z.lxor (Int.unsigned a) (Int.unsigned b) < 256).
-  { destruct (Z.eq_dec (Z.lxor (Int.unsigned a) (Int.unsigned b)) 0) as [E|E].
-    { rewrite E. lia. }
-    change 256 with (2 ^ 8).
-    apply Z.log2_lt_pow2; [lia| ].
-    apply (Z.le_lt_trans _ (Z.max (Z.log2 (Int.unsigned a)) (Z.log2 (Int.unsigned b))) _).
-    { apply Z.log2_lxor; lia. }
-    apply Z.max_lub_lt; lia. }
-  rewrite Z.mod_small by (change Int.modulus with 4294967296; lia).
+  pose proof (Int.size_interval_2 a 8 ltac:(lia) Ha) as Ha_size.
+  pose proof (Int.size_interval_2 b 8 ltac:(lia) Hb) as Hb_size.
+  pose proof (Int.size_range a) as Ha_size_range.
+  pose proof (Int.xor_interval a b) as Hxor_range.
+  assert (Hpower : two_p (Z.max (Int.size a) (Int.size b)) <= two_p 8).
+  { apply two_p_monotone.
+    lia. }
+  change (two_p 8) with 256 in Hpower.
   lia.
 Qed.
 
@@ -86,26 +67,14 @@ Lemma int_or_byte_bound (a b : int) :
   0 <= Int.unsigned (Int.or a b) < 256.
 Proof.
   intros Ha Hb.
-  unfold Int.or.
-  rewrite Int.unsigned_repr_eq.
-  assert (Hnn : 0 <= Z.lor (Int.unsigned a) (Int.unsigned b))
-    by (apply Z.lor_nonneg; lia).
-  assert (Ha8 : Z.log2 (Int.unsigned a) < 8).
-  { destruct (Z.eq_dec (Int.unsigned a) 0) as [E|E].
-    - rewrite E. simpl. lia.
-    - apply Z.log2_lt_pow2; [lia|change (2^8) with 256; lia]. }
-  assert (Hb8 : Z.log2 (Int.unsigned b) < 8).
-  { destruct (Z.eq_dec (Int.unsigned b) 0) as [E|E].
-    - rewrite E. simpl. lia.
-    - apply Z.log2_lt_pow2; [lia|change (2^8) with 256; lia]. }
-  assert (Hub : Z.lor (Int.unsigned a) (Int.unsigned b) < 256).
-  { destruct (Z.eq_dec (Z.lor (Int.unsigned a) (Int.unsigned b)) 0) as [E|E].
-    { rewrite E. lia. }
-    change 256 with (2 ^ 8).
-    apply Z.log2_lt_pow2; [lia| ].
-    rewrite Z.log2_lor by lia.
-    apply Z.max_lub_lt; lia. }
-  rewrite Z.mod_small by (change Int.modulus with 4294967296; lia).
+  pose proof (Int.size_interval_2 a 8 ltac:(lia) Ha) as Ha_size.
+  pose proof (Int.size_interval_2 b 8 ltac:(lia) Hb) as Hb_size.
+  pose proof (Int.size_range a) as Ha_size_range.
+  pose proof (Int.or_interval a b) as Hor_range.
+  assert (Hpower : two_p (Z.max (Int.size a) (Int.size b)) <= two_p 8).
+  { apply two_p_monotone.
+    lia. }
+  change (two_p 8) with 256 in Hpower.
   lia.
 Qed.
 

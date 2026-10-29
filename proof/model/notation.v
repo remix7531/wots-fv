@@ -12,7 +12,7 @@
 (** Copyright (C) 2026 remix7531
     SPDX-License-Identifier: GPL-3.0-or-later *)
 
-From Coq Require Import List.
+From Stdlib Require Import List.
 Import ListNotations.
 
 (* ================================================================= *)

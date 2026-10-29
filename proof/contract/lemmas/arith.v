@@ -135,18 +135,11 @@ Proof.
     - exists 256.
       split; [reflexivity | split; [exists 1;        reflexivity | lia]]. }
 
-  destruct Hfact as [m [H32 [[c Hc] Hk0]]].
-
-  (* Main computation: rewrite v = 2^32*q + r, then cancel the 256-multiple *)
-  set (q := v / 2^32).
-  set (r := v mod 2^32).
-  replace v with (2^32 * q + r) by (unfold q, r; symmetry; apply Z.div_mod; lia).
-  rewrite H32.
-  replace (2^k * m * q + r) with (((c * q) * 256) * 2^k + r) by (rewrite Hc; ring).
-  rewrite Z.div_add_l by lia.
-  rewrite <- Z.add_mod_idemp_l by lia.
-  rewrite Z.mod_mul by lia.
-  reflexivity.
+  destruct Hfact as [m [H32 [Hdivide Hk0]]].
+  rewrite H32 at 1.
+  rewrite Zaux.Zdiv_mod_mult by nia.
+  apply Z.mod_mod_divide.
+  exact Hdivide.
 Qed.
 
 (** Bit [i >= 8] of any value [< 256] is zero. *)
@@ -167,7 +160,6 @@ Lemma zero_ext_shru_byte : forall (v k : Z),
 Proof.
   intros v k Hk.
 
-  (* Setup: normalize and unfold *)
   assert (Hrng : 0 <= k <= 24)
     by (destruct Hk as [H|[H|[H|H]]]; lia).
   unfold Vubyte.
@@ -175,34 +167,16 @@ Proof.
   rewrite Byte.unsigned_repr_eq.
   change Byte.modulus with 256.
   rewrite Zmod_mod.
-  unfold Int.zero_ext.
-  rewrite Zbits.Zzero_ext_mod by lia.
-  change (two_p 8) with 256.
-  unfold Int.shru.
-  rewrite !Int.unsigned_repr_eq.
+  rewrite Int.zero_ext_and by lia.
+  rewrite Int.shru_div_two_p.
+  rewrite (Int.unsigned_repr k) by rep_lia.
+  rewrite and_repr.
+  change (two_p 8 - 1) with (Z.ones 8).
+  rewrite Z.land_ones by lia.
+  rewrite two_p_equiv by lia.
+  rewrite Int.unsigned_repr_eq.
   change Int.modulus with (2^32).
-
-  (* Simplify the shift amount modulus *)
-  assert (Hkmod : k mod 2^32 = k) by (apply Zmod_small; lia).
-  rewrite Hkmod.
-  rewrite Z.shiftr_div_pow2 by lia.
-
-  (* Bounds on the shifted value so Zmod_small applies *)
-  assert (Hlt : (v mod 2^32) / 2^k < 2^32).
-  { apply Z.div_lt_upper_bound; [apply Z.pow_pos_nonneg; lia|].
-    apply Z.lt_le_trans with (2^32); [apply Z.mod_pos_bound; lia|].
-    rewrite <- (Z.mul_1_l (2^32)) at 1.
-    apply Z.mul_le_mono_nonneg_r; [apply Z.pow_nonneg; lia|].
-    destruct Hk as [Hc|[Hc|[Hc|Hc]]]; lia. }
-  assert (Hge : 0 <= (v mod 2^32) / 2^k).
-  { apply Z.div_pos; [apply Z.mod_pos_bound; lia | apply Z.pow_pos_nonneg; lia]. }
-
-  (* Closeout: apply eqm and delegate to div_mod256_mod2pow32 *)
-  rewrite (Zmod_small _ (2^32)) by lia.
-  apply Int.eqm_samerepr.
-  unfold Int.eqm, Zbits.eqmod.
-  exists 0.
-  rewrite Z.mul_0_l, Z.add_0_l.
+  f_equal.
   apply div_mod256_mod2pow32.
   exact Hk.
 Qed.
@@ -349,20 +323,16 @@ Proof.
   change (Int.unsigned (Int.repr 4)) with 4.
   rewrite Int.zero_ext_idem by lia.
 
-  (* Main computation: bit equality *)
-  apply Int.same_bits_eq.
-  intros i Hi.
-  rewrite Int.bits_zero_ext by lia.
-  rewrite !Int.testbit_repr by (try destruct (zlt i 8); lia).
-  destruct (zlt i 8).
-  - (* low bits: shift matches division *)
-    rewrite Z.shiftr_div_pow2 by lia.
-    change (2^4) with 16.
-    reflexivity.
-  - (* high bits: x/16 < 256, so bit i is zero *)
-    symmetry. 
-    apply Z_testbit_above_8; [|lia].
-    split; [apply Z.div_pos; lia | apply Z.div_lt_upper_bound; lia].
+  rewrite Z.shiftr_div_pow2 by lia.
+  change (2^4) with 16.
+  apply zero_ext_inrange.
+  assert (Hquotient : 0 <= x / 16 < 256).
+  { split.
+    - apply Z.div_pos; lia.
+    - apply Z.div_lt_upper_bound; lia. }
+  rewrite Int.unsigned_repr by rep_lia.
+  change (two_p 8) with 256.
+  lia.
 Qed.
 
 Lemma Zland_15_mod16 : forall x : Z, 0 <= x -> Z.land x 15 = x mod 16.
@@ -377,12 +347,7 @@ Lemma Int_and_15 : forall x,
   Int.and (Int.repr x) (Int.repr 15) = Int.repr (Z.land x 15).
 Proof.
   intros x.
-  apply Int.same_bits_eq.
-  intros j Hj.
-  rewrite Int.bits_and by lia.
-  rewrite !Int.testbit_repr by lia.
-  rewrite Z.land_spec.
-  reflexivity.
+  apply and_repr.
 Qed.
 
 Lemma nibble_lo : forall x : Z, 0 <= x < 256 ->
@@ -395,17 +360,11 @@ Proof.
   rewrite Int.zero_ext_idem by lia.
   rewrite Int_and_15, Zland_15_mod16 by lia.
 
-  (* Main computation: bit equality *)
-  apply Int.same_bits_eq.
-  intros i Hi.
-  rewrite Int.bits_zero_ext by lia.
-  rewrite !Int.testbit_repr by lia.
   assert (Hmod : 0 <= x mod 16 < 16) by (apply Z.mod_pos_bound; lia).
-  destruct (zlt i 8); [reflexivity|].
-
-  (* High bits: x mod 16 < 16 < 256, so bit i is zero *)
-  symmetry.
-  apply Z_testbit_above_8; [lia | lia].
+  apply zero_ext_inrange.
+  rewrite Int.unsigned_repr by rep_lia.
+  change (two_p 8) with 256.
+  lia.
 Qed.
 
 (** The nibble-extraction function. *)
@@ -605,20 +564,14 @@ Proof.
     reflexivity. }
   rewrite Hshru.
 
-  (* Main computation: collapse zero_ext and and, then bit equality *)
   rewrite Int.zero_ext_idem by lia.
   rewrite Int_and_15, Zland_15_mod16 by lia.
-  apply Int.same_bits_eq.
-  intros i Hi.
-  rewrite Int.bits_zero_ext by lia.
-  rewrite !Int.testbit_repr by lia.
   assert (Hmod : 0 <= (v / 2^k) mod 16 < 16)
     by (apply Z.mod_pos_bound; lia).
-  destruct (zlt i 8); [reflexivity|].
-
-  (* High bits are zero: the mod 16 result fits in 4 bits *)
-  symmetry.
-  apply Z_testbit_above_8; lia.
+  apply zero_ext_inrange.
+  rewrite Int.unsigned_repr by rep_lia.
+  change (two_p 8) with 256.
+  lia.
 Qed.
 
 (** Nibble-valued [Vubyte] in [Z.to_nat] form equals [Vint]. *)

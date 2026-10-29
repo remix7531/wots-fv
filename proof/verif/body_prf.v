@@ -5,12 +5,6 @@
 From VST Require Import floyd.proofauto.
 From wots Require Import contract.gprog contract.lemmas.
 
-(* Oracle-polymorphic VST3 style: the body proof is parameterized over [Σ] /
-   [VSTGS] (see contract.public).  The data_at array split/join surgery below is
-   the idiomatic *assert-level* VST3 idiom -- [data_at] is opaque to the Iris
-   Proof Mode (no iFrame/iDestruct on arrays), so [gather_SEP] + the
-   [split2_data_at_Tarray_app] equality is exactly right; IPM is used where the
-   goal is a raw iProp (see body_wotsfv_verify for iSplit/iExists/iPureIntro). *)
 Section body_prf_proof.
 Context `{!VSTGS OK_ty Σ}.
 
@@ -80,26 +74,14 @@ Proof.
   set (X3 := map Vint (block_ints in_buf)).
   set (X1 := upd_Znth (32 - 1) (repeat (Vint (Int.repr 0)) (Z.to_nat 32))
                       (Vint (Int.zero_ext 8 (Int.repr 3)))).
-  assert (HlX1 : Zlength X1 = 32) by (subst X1; list_solve).
-  assert (HlX2 : Zlength X2 = 32) by (subst X2; list_solve).
-  assert (HlX3 : Zlength X3 = 64 - 32) by (subst X3; list_solve).
-  assert (HlX23 : Zlength (X2 ++ X3) = 96 - 32) by list_solve.
-
   unfold p64.
   change (Tarray tuchar 64 noattr) with (tarray tuchar 64).
-  replace (data_at Tsh (tarray tuchar 32) X3
-             (field_address0 (tarray tuchar 64) (SUB 32) p32))
-    with  (data_at Tsh (tarray tuchar (64 - 32)) X3
-             (field_address0 (tarray tuchar 64) (SUB 32) p32))
-    by (f_equal; f_equal; lia).
-  (* VST on Iris builds the SEP list right-associated, so gather_SEP already
-     leaves X2 and X3 grouped as (X2 ∗ X3) -- no sepcon_assoc needed (VST 2.x's
-     left-assoc SEP required it; Iris's would here break the grouping). *)
-  rewrite <- (split2_data_at_Tarray_app 32 64 Tsh tuchar X2 X3 p32
-                HlX2 HlX3).
+  rewrite <- (split2_data_at_Tarray_app 32 64 Tsh tuchar X2 X3 p32)
+    by (subst X2 X3; list_solve).
   change (Tarray tuchar 96 noattr) with (tarray tuchar 96) in p32.
   unfold p32.
-  rewrite <- (split2_data_at_Tarray_app 32 96 Tsh tuchar X1 (X2 ++ X3) v_buf HlX1 HlX23).
+  rewrite <- (split2_data_at_Tarray_app 32 96 Tsh tuchar X1 (X2 ++ X3) v_buf)
+    by (subst X1 X2 X3; list_solve).
 
   (* Unify X1 ++ X2 ++ X3 with block_to_vals of the abstract SHA256 input. *)
   assert (Heq : X1 ++ X2 ++ X3 =

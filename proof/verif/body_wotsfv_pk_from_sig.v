@@ -101,15 +101,12 @@ Proof.
         apply pkFromSig_block_Zlength, Hnth_sig. }
 
     (* Split pk into FILLED + MID(32) + TAIL. *)
-    erewrite (split2_data_at_Tarray_app (32*i) 2144 sh_pk tuchar
-               FILLED (Zrepeat Vundef (2144 - 32*i)))
-      by (try exact HlFILLED; split_sc).
     replace (2144 - 32*i) with (32 + (2144 - 32*(i+1))) by lia.
     rewrite <- Zrepeat_app by lia.
-    erewrite (split2_data_at_Tarray_app 32 _ sh_pk tuchar
-               (Zrepeat Vundef 32)
-               (Zrepeat Vundef (2144 - 32*(i+1))))
-      by split_sc.
+    erewrite (split3_data_at_Tarray_tuchar_app (32 * i) 32 2144 sh_pk
+                FILLED (Zrepeat Vundef 32)
+                (Zrepeat Vundef (2144 - 32 * (i + 1))) pk_ptr)
+      by (try exact HlFILLED; Zlength_solve).
     set (pSUFF :=
       field_address0 (tarray tuchar 2144) (SUB (32*i)) pk_ptr).
     Intros.
@@ -147,13 +144,9 @@ Proof.
       - apply Forall_skipn.
         assumption. }
 
-    erewrite (split2_data_at_Tarray_app (32*i) 2144 sh_sig tuchar
-               SFILLED (SCHUNK ++ STAIL))
-      by (try exact HlSFILLED;
-          rewrite Zlength_app, HlSCHUNK, HlSTAIL; lia).
-    erewrite (split2_data_at_Tarray_app 32 _ sh_sig tuchar
-               SCHUNK STAIL)
-      by (try exact HlSCHUNK; split_sc).
+    erewrite (split3_data_at_Tarray_tuchar_app (32 * i) 32 2144 sh_sig
+                SFILLED SCHUNK STAIL sig_ptr)
+      by (try assumption; rewrite HlSTAIL; lia).
     set (pSIG := field_address0 (tarray tuchar 2144) (SUB (32*i)) sig_ptr).
     Intros.
 
@@ -268,18 +261,19 @@ Proof.
          reflexivity. }
 
     (* chain output on pSUFF = pkFromSig_block *)
-    replace i with (Z.of_nat (Z.to_nat i)) at 7 by lia.
-    replace (setKeyAndMask
-               (setHashAddress (setChainAddress a_cur (Z.of_nat (Z.to_nat i))) 0) 0)
-      with (setChainAddress
-              (setKeyAndMask (setHashAddress a_cur 0) 0)
-              (Z.of_nat (Z.to_nat i)))
-      by (destruct a_cur; reflexivity).
+    assert (Hreset_address :
+      setKeyAndMask (setHashAddress (setChainAddress a_cur i) 0) 0 =
+      setChainAddress (setKeyAndMask (setHashAddress a_cur 0) 0)
+        (Z.of_nat (Z.to_nat i)))
+      by (replace (Z.of_nat (Z.to_nat i)) with i by lia;
+          destruct a_cur; reflexivity).
+    rewrite Hreset_address.
     rewrite (chain_pkFromSig_block_struct_eq sig msg pub_seed
                (Z.to_nat i)
                (setKeyAndMask (setHashAddress a_cur 0) 0) a).
     2: { destruct a_cur as [al ath atl aty aot ac ah akm].
          unfold adrs_struct_eq in *; simpl in *; tauto. }
+    rewrite <- Hreset_address.
     Exists (chain_addr_post
               (setKeyAndMask
                  (setHashAddress (setChainAddress a_cur i) 0) 0)
@@ -287,60 +281,27 @@ Proof.
               (w_pred -
                nth (Z.to_nat i) (expand_msg msg) 0%nat)).
 
-    (* Simplify arithmetic on slice offsets. *)
-    replace (32 + (2144 - 32 * (i + 1)) - 32)
-      with (2144 - 32 * i - 32) by lia.
-    replace (32 + (2144 - 32 * (i + 1)))
-      with (2144 - 32 * i) by lia.
     change n_bytes with 32 in *.
     assert (Hlb_block : Zlength (block_to_vals
         (pkFromSig_block sig msg pub_seed a (Z.to_nat i))) = 32).
     { rewrite block_to_vals_length, pkFromSig_block_Zlength; auto. }
 
-    (* Merge pk: pSUFF slot + TAIL -> (2144 - 32*i) chunk. *)
-    gather_SEP
-      (data_at sh_pk (tarray tuchar 32)
-         (block_to_vals
-            (pkFromSig_block sig msg pub_seed a (Z.to_nat i)))
-         pSUFF)
-      (data_at sh_pk (tarray tuchar (2144 - 32 * i - 32)) _ _).
-    erewrite <- (split2_data_at_Tarray_app 32 (2144 - 32 * i)
-                   sh_pk tuchar
-                   (block_to_vals
-                      (pkFromSig_block sig msg pub_seed a
-                         (Z.to_nat i)))
-                   (Zrepeat Vundef (2144 - 32 * (i + 1)))
-                   pSUFF Hlb_block)
-      by split_sc.
-    unfold pSUFF.
-    gather_SEP
-      (data_at sh_pk (tarray tuchar (32 * i)) FILLED pk_ptr)
-      (data_at sh_pk (tarray tuchar (2144 - 32 * i)) _ _).
-
-    (* Merge sig: SCHUNK slot + STAIL -> (2144 - 32*i) chunk. *)
-    gather_SEP
-      (data_at sh_sig (tarray tuchar 32) _ pSIG)
-      (data_at sh_sig (tarray tuchar (2144 - 32 * i - 32)) _ _).
+    (* Restore the unchanged signature with offsets in the parent array. *)
     assert (HlSCHUNK_eq :
         Zlength (block_to_vals (nth (Z.to_nat i) sig default)) = 32)
       by exact HlSCHUNK.
-    assert (HlSTAIL_eq : Zlength STAIL = 2144 - 32 * i - 32)
-      by (rewrite HlSTAIL; lia).
-    erewrite <- (split2_data_at_Tarray_app 32 (2144 - 32 * i)
-                   sh_sig tuchar
-                   (block_to_vals (nth (Z.to_nat i) sig default))
-                   STAIL pSIG HlSCHUNK_eq)
-      by (exact HlSTAIL_eq).
     unfold pSIG.
     gather_SEP
       (data_at sh_sig (tarray tuchar (32 * i)) SFILLED sig_ptr)
-      (data_at sh_sig (tarray tuchar (2144 - 32 * i)) _ _).
-    erewrite <- (split2_data_at_Tarray_app (32 * i) 2144 sh_sig
-                   tuchar SFILLED
-                   (block_to_vals (nth (Z.to_nat i) sig default)
-                    ++ STAIL)
-                   sig_ptr HlSFILLED)
-      by (rewrite Zlength_app, HlSCHUNK_eq, HlSTAIL_eq; lia).
+      (data_at sh_sig (tarray tuchar 32)
+         (block_to_vals (nth (Z.to_nat i) sig default))
+         (field_address0 (tarray tuchar 2144) (SUB (32 * i)) sig_ptr))
+      (data_at sh_sig (tarray tuchar (2144 - 32 * i - 32)) STAIL
+         (field_address0 (tarray tuchar 2144) (SUB (32 * i + 32)) sig_ptr)).
+    erewrite <- (split3_data_at_Tarray_tuchar_app (32 * i) 32 2144 sh_sig
+                   SFILLED (block_to_vals (nth (Z.to_nat i) sig default))
+                   STAIL sig_ptr)
+      by (try assumption; rewrite HlSTAIL; lia).
 
     (* Reshape sig content back to blocks_to_vals sig. *)
     replace (SFILLED ++
@@ -355,6 +316,15 @@ Proof.
            as Hbsplit.
          rewrite <- Hbsplit. 
          reflexivity. }
+    unfold pSUFF.
+    gather_SEP
+      (data_at sh_pk (tarray tuchar (32 * i)) FILLED pk_ptr)
+      (data_at sh_pk (tarray tuchar 32)
+         (block_to_vals (pkFromSig_block sig msg pub_seed a (Z.to_nat i)))
+         (field_address0 (tarray tuchar 2144) (SUB (32 * i)) pk_ptr))
+      (data_at sh_pk (tarray tuchar (2144 - 32 * i - 32))
+         (Zrepeat Vundef (2144 - 32 * (i + 1)))
+         (field_address0 (tarray tuchar 2144) (SUB (32 * i + 32)) pk_ptr)).
     entailer!.
     { (* PROP of next invariant: adrs_struct_eq preserved through chain *)
       unfold adrs_struct_eq, chain_addr_post in *.
@@ -364,19 +334,16 @@ Proof.
         simpl in *; repeat split; tauto. }
 
     (* Merge pk: FILLED + new-block -> seq 0 (i+1) prefix. *)
-    erewrite <- (split2_data_at_Tarray_app (32 * i) 2144 sh_pk
-                   tuchar FILLED
+    erewrite <- (split3_data_at_Tarray_tuchar_app (32 * i) 32 2144 sh_pk
+                   FILLED
                    (block_to_vals
                       (pkFromSig_block sig msg pub_seed a
-                         (Z.to_nat i))
-                    ++ Zrepeat Vundef (2144 - 32 * (i + 1)))
-                   pk_ptr HlFILLED)
-      by (rewrite Zlength_app, Hlb_block, Zlength_Zrepeat; lia).
-    apply derives_refl'.
-    f_equal.
+                         (Z.to_nat i)))
+                   (Zrepeat Vundef (2144 - 32 * (i + 1))) pk_ptr)
+      by (try assumption; Zlength_solve).
     replace (Z.to_nat (i + 1)) with (S (Z.to_nat i)) by lia.
-    rewrite blocks_to_vals_seq_S, <- app_assoc. 
-    reflexivity.
+    rewrite blocks_to_vals_seq_S, <- app_assoc.
+    cancel.
 
   (* ===== loop exit ===== *)
 
